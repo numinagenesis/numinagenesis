@@ -1,5 +1,5 @@
-﻿"use client";
-import { useState, useEffect, useCallback } from "react";
+"use client";
+import { useState, useEffect, useCallback, useRef } from "react";
 import PixelAvatar from "@/components/PixelAvatar";
 import { DIVISIONS, TIERS, SKILLS, MEMORIES, type DivisionKey, type TierKey } from "@/lib/divisions";
 
@@ -78,7 +78,7 @@ function Slot({ label, finalValue, lockDelay }: { label:string; finalValue:strin
            style={{ border: `1px solid ${locked ? "#FFFFFF" : "#222222"}`,
                     background: locked ? "rgba(255,255,255,0.04)" : "#080808",
                     transition: "border-color 0.3s, background 0.3s" }}>
-        <span className="pixel" style={{ fontSize: 7, color: locked ? "#FFFFFF" : "#FFFFFF",
+        <span className="pixel" style={{ fontSize: 7, color: "#FFFFFF",
                                          wordBreak:"break-all", lineHeight: 2, display:"block" }}>
           {val}
         </span>
@@ -93,13 +93,17 @@ function Slot({ label, finalValue, lockDelay }: { label:string; finalValue:strin
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SummonPage() {
-  const [stage, setStage] = useState<Stage>("idle");
+  const [stage, setStage]   = useState<Stage>("idle");
   const [loadStep, setLoadStep] = useState(0);
   const [progress, setProgress] = useState(0);
-  const [agent, setAgent]       = useState<AgentData | null>(null);
-  const [task, setTask]         = useState("");
-  const [output, setOutput]     = useState("");
-  const [taskErr, setTaskErr]   = useState("");
+  const [agent, setAgent]   = useState<AgentData | null>(null);
+  const [task, setTask]     = useState("");
+  const [output, setOutput] = useState("");
+  const [taskErr, setTaskErr] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  // Ref for the agent card DOM node — used by html2canvas
+  const cardRef = useRef<HTMLDivElement>(null);
 
   const summon = useCallback(() => {
     const newAgent = generateAgent();
@@ -132,6 +136,51 @@ export default function SummonPage() {
       setTaskErr(e instanceof Error ? e.message : "Agent offline.");
       setStage("tasking");
     }
+  }
+
+  // ── SAVE: capture agent card as PNG ──────────────────────────────────────────
+  async function saveCard() {
+    if (!cardRef.current || !agent || !div) return;
+    setSaving(true);
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(cardRef.current, {
+        backgroundColor: "#000000",
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+      const link = document.createElement("a");
+      link.download = `NUMINA-#${agent.tokenId}-${div.name.replace(/\s+/g, "-")}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // ── SHARE: open Twitter/X intent with pre-filled tweet ───────────────────────
+  function shareOnX() {
+    if (!agent || !div || !tier) return;
+    const soulHash = agent.soulFragment.replace("ar://", "").slice(0, 8);
+    const text = [
+      `Just collapsed NUMINA #${agent.tokenId} into existence.`,
+      ``,
+      `Division: ${div.name}`,
+      `Tier: ${tier.name}`,
+      `Soul: ${soulHash}`,
+      ``,
+      `[QUANTUM STATE: RESOLVED]`,
+      ``,
+      `numinagenesis.vercel.app/summon`,
+      ``,
+      `#NUMINA #Web3 #AI`,
+    ].join("\n");
+    window.open(
+      `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`,
+      "_blank",
+      "noopener,noreferrer"
+    );
   }
 
   function reset() { setStage("idle"); setAgent(null); setTask(""); setOutput(""); setTaskErr(""); setProgress(0); }
@@ -228,7 +277,9 @@ export default function SummonPage() {
 
         {/* Left: Agent card */}
         <div className="fade-up flex flex-col gap-4">
-          <div className="numina-card bracketed p-0">
+
+          {/* cardRef wraps only the visual card — not the buttons below */}
+          <div ref={cardRef} className="numina-card bracketed p-0">
             <div className="flex items-center justify-between px-4 py-2"
                  style={{borderBottom:"1px solid #222222",background:"#080808"}}>
               <span className="pixel text-[7px] text-dim">NUMINA #{agent.tokenId}</span>
@@ -271,7 +322,7 @@ export default function SummonPage() {
                 { k:"TIER",     v:tier.name.toUpperCase(), r:`${tier.rarity}%`, c: tier.color },
                 { k:"SKILL",    v:agent.skill,             r:"UNIQUE",          c:"#FFFFFF"   },
                 { k:"MEMORY",   v:agent.memory,            r:"RARE",            c:"#FFFFFF"   },
-                { k:"TASKS",    v:"0",                     r:"UNPROVEN",        c:"#666666"      },
+                { k:"TASKS",    v:"0",                     r:"UNPROVEN",        c:"#666666"   },
               ].map(({k,v,r,c})=>(
                 <div key={k} className="flex justify-between py-1" style={{borderBottom:"1px solid #222222"}}>
                   <span className="mono text-[10px] text-dim">{k}</span>
@@ -282,9 +333,12 @@ export default function SummonPage() {
             </div>
           </div>
 
+          {/* Action buttons — outside cardRef so they don't appear in the PNG */}
           <div className="flex flex-wrap gap-2">
-            <button className="btn-ghost">↓ SAVE</button>
-            <button className="btn-ghost">SHARE</button>
+            <button onClick={saveCard} disabled={saving} className="btn-ghost">
+              {saving ? "SAVING..." : "↓ SAVE"}
+            </button>
+            <button onClick={shareOnX} className="btn-ghost">↗ SHARE</button>
             {stage === "revealed" && (
               <button onClick={()=>setStage("tasking")} className="btn-outline">► DEPLOY TASK</button>
             )}
