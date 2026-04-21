@@ -1,0 +1,34 @@
+# ── Secrets & environment ──────────────────────────────────────
+.env
+.env.local
+.env*.local
+
+# Explicit project-level .env guards (belt and suspenders)
+agent-nft/.env
+agent-nft/.env.local
+agent-nft/.env*.local
+
+# ── Dependencies ───────────────────────────────────────────────
+node_modules/
+agent-nft/node_modules/
+
+# ── Next.js build output ───────────────────────────────────────
+.next/
+out/
+build/
+
+# ── Claude AI tooling ──────────────────────────────────────────
+.claude/
+
+# ── Certificates & keys ────────────────────────────────────────
+*.pem
+*.key
+*.p12
+*.pfx
+
+# ── OS ─────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+desktop.ini

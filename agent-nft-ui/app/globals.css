@@ -1,0 +1,95 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background-color: #080808;
+  color: #e8e8e8;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: #0066ff33;
+  color: #fff;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0d0d0d;
+}
+::-webkit-scrollbar-thumb {
+  background: #222;
+  border-radius: 3px;
+}
+
+@layer utilities {
+  .card-glow {
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  .card-glow:hover {
+    box-shadow: 0 0 24px rgba(0, 102, 255, 0.12);
+    border-color: rgba(0, 102, 255, 0.3);
+  }
+  .card-selected {
+    border-color: #0066ff !important;
+    box-shadow: 0 0 32px rgba(0, 102, 255, 0.22) !important;
+  }
+  .terminal {
+    font-family: "JetBrains Mono", "Fira Code", monospace;
+    font-size: 0.825rem;
+    line-height: 1.7;
+  }
+  .btn-primary {
+    background: #0066ff;
+    color: #fff;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+  .btn-primary:hover {
+    background: #0055dd;
+  }
+  .btn-primary:active {
+    transform: scale(0.98);
+  }
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid #1c1c1c;
+    color: #888;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+  .btn-ghost:hover {
+    border-color: #333;
+    color: #ccc;
+  }
+  .fade-in {
+    animation: fadeIn 0.3s ease forwards;
+  }
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .blink {
+    animation: blink 1s step-end infinite;
+  }
+  @keyframes blink {
+    50% {
+      opacity: 0;
+    }
+  }
+}

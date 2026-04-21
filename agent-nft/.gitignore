@@ -1,0 +1,16 @@
+# ── Dependencies ───────────────────────────────────────────────
+node_modules/
+
+# ── Secrets & environment ──────────────────────────────────────
+# .env.example is intentionally NOT ignored — it's a safe template
+.env
+.env.local
+.env*.local
+
+# ── Certificates & keys ────────────────────────────────────────
+*.pem
+*.key
+
+# ── OS ─────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

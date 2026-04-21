@@ -1,0 +1,20 @@
+# ── Dependencies ───────────────────────────────────────────────
+node_modules/
+
+# ── Next.js build output ───────────────────────────────────────
+.next/
+out/
+build/
+
+# ── Secrets & environment ──────────────────────────────────────
+.env
+.env.local
+.env*.local
+
+# ── Certificates & keys ────────────────────────────────────────
+*.pem
+*.key
+
+# ── OS ─────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

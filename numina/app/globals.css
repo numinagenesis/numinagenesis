@@ -1,0 +1,290 @@
+@import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  background: #000000;
+  color: #FFFFFF;
+  font-family: "Courier New", Courier, monospace;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* ── Full-screen scanline overlay ── */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(255,255,255,0.02) 2px,
+    rgba(255,255,255,0.02) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+::selection { background: rgba(255,255,255,0.15); color: #FFFFFF; }
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: #000000; }
+::-webkit-scrollbar-thumb { background: #333333; border-radius: 2px; }
+
+/* ── Typography ── */
+.pixel { font-family: "Press Start 2P", monospace; }
+.mono  { font-family: "Courier New", Courier, monospace; }
+
+/* ── Ticker ── */
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.ticker-track {
+  animation: ticker-scroll 24s linear infinite;
+  white-space: nowrap;
+  display: inline-block;
+}
+.ticker-track:hover { animation-play-state: paused; }
+
+/* ── Glitch — grey tones only, runs every 4s for 0.3s ── */
+@keyframes glitch {
+  0%, 92.5%, 100% {
+    transform: none;
+    text-shadow: 0 0 10px rgba(255,255,255,0.4), 0 0 20px rgba(255,255,255,0.15);
+  }
+  93% {
+    transform: translate(-3px, 0);
+    text-shadow: 2px 0 #333333, -2px 0 #666666;
+  }
+  94% {
+    transform: translate(3px, 0);
+    text-shadow: -2px 0 #333333, 2px 0 #666666;
+  }
+  95% {
+    transform: translate(-2px, 0);
+    text-shadow: 2px 0 #444444, -2px 0 #555555;
+  }
+  96% {
+    transform: translate(1px, 0);
+    text-shadow: -1px 0 #333333, 1px 0 #666666;
+  }
+  96.5% {
+    transform: none;
+    text-shadow: 0 0 10px rgba(255,255,255,0.4), 0 0 20px rgba(255,255,255,0.15);
+  }
+}
+.glitch { animation: glitch 4s infinite; }
+
+/* Fast glitch — for small elements */
+@keyframes glitch-fast {
+  0%, 85%, 100% { transform: none; }
+  86% { transform: translate(-2px, 0); clip-path: inset(20% 0 60% 0); }
+  87% { transform: translate( 2px, 0); clip-path: inset(60% 0 20% 0); }
+  88% { transform: translate(-1px, 0); clip-path: inset(40% 0 40% 0); }
+  89% { transform: none; clip-path: none; }
+}
+.glitch-fast { animation: glitch-fast 3s infinite; }
+
+/* ── Scanlines (component-level, lighter) ── */
+.scanlines {
+  position: relative;
+  overflow: hidden;
+}
+.scanlines::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg, transparent, transparent 2px,
+    rgba(0,0,0,0.2) 2px, rgba(0,0,0,0.2) 4px
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── Corner brackets ── */
+.bracketed {
+  position: relative;
+}
+.bracketed::before {
+  content: '';
+  position: absolute;
+  top: -1px; left: -1px;
+  width: 16px; height: 16px;
+  border-top: 2px solid #FFFFFF;
+  border-left: 2px solid #FFFFFF;
+}
+.bracketed::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; right: -1px;
+  width: 16px; height: 16px;
+  border-bottom: 2px solid #FFFFFF;
+  border-right: 2px solid #FFFFFF;
+}
+
+/* ── Chain border divider ── */
+.chain-border {
+  border: none;
+  height: 1px;
+  background: repeating-linear-gradient(
+    90deg,
+    #222222 0px, #222222 8px,
+    #555555 8px, #555555 10px,
+    #222222 10px, #222222 18px,
+    transparent 18px, transparent 20px
+  );
+}
+
+/* ── Buttons ── */
+.btn-amber {
+  font-family: "Press Start 2P", monospace;
+  font-size: 10px;
+  background: transparent;
+  color: #FFFFFF;
+  border: 2px solid #FFFFFF;
+  padding: 12px 20px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, transform 0.1s, box-shadow 0.1s;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-shadow: none;
+  box-shadow: none;
+}
+.btn-amber:hover {
+  background: #FFFFFF;
+  color: #000000;
+  text-shadow: none;
+  box-shadow: 0 0 20px rgba(255,255,255,0.15);
+}
+.btn-amber:active { transform: scale(0.97); }
+.btn-amber:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; }
+
+.btn-outline {
+  font-family: "Press Start 2P", monospace;
+  font-size: 10px;
+  background: transparent;
+  color: #AAAAAA;
+  border: 2px solid #444444;
+  padding: 12px 20px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, box-shadow 0.1s;
+  text-transform: uppercase;
+  text-shadow: none;
+}
+.btn-outline:hover {
+  background: #222222;
+  color: #FFFFFF;
+  border-color: #AAAAAA;
+  text-shadow: none;
+  box-shadow: none;
+}
+
+.btn-ghost {
+  font-family: "Press Start 2P", monospace;
+  font-size: 10px;
+  background: transparent;
+  color: #666666;
+  border: 1px solid #333333;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: border-color 0.1s, color 0.1s;
+}
+.btn-ghost:hover {
+  border-color: #AAAAAA;
+  color: #FFFFFF;
+}
+
+/* ── Cards ── */
+.numina-card {
+  background: #080808;
+  border: 1px solid #222222;
+  position: relative;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.numina-card:hover {
+  border-color: #FFFFFF;
+  box-shadow: 0 0 15px rgba(255,255,255,0.1);
+}
+
+/* ── Terminal ── */
+.terminal {
+  background: #080808;
+  border: 1px solid #222222;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #FFFFFF;
+  padding: 20px;
+  white-space: pre-wrap;
+  overflow-y: auto;
+}
+.terminal-bar {
+  background: #080808;
+  border-bottom: 1px solid #222222;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Progress bar ── */
+@keyframes progress-fill {
+  from { width: 0; }
+  to   { width: 100%; }
+}
+.progress-fill { animation: progress-fill linear forwards; }
+
+/* ── Slot machine ── */
+@keyframes slot-spin {
+  0%   { transform: translateY(0); }
+  100% { transform: translateY(-75%); }
+}
+.slot-spin { animation: slot-spin 0.12s linear infinite; }
+
+/* ── Fade in ── */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fade-up 0.4s ease forwards; }
+
+/* ── Blink cursor ── */
+@keyframes blink { 50% { opacity: 0; } }
+.blink { animation: blink 1s step-end infinite; }
+
+/* ── Rarity badge colors ── */
+.rarity-legendary  { color: #FFFFFF; border-color: #FFFFFF; }
+.rarity-epic       { color: #AAAAAA; border-color: #AAAAAA; }
+.rarity-rare       { color: #666666; border-color: #666666; }
+.rarity-uncommon   { color: #FFFFFF; }
+.rarity-common     { color: #444444; }
+.rarity-classified { color: #444444; border-color: #222222; }
+
+/* ── Pixel avatar — always grayscale ── */
+.pixel-avatar {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  filter: grayscale(100%);
+}
+
+/* ── Pulsing glow ── */
+@keyframes pulse-white {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+  50%       { box-shadow: 0 0 20px 4px rgba(255,255,255,0.08); }
+}
+.pulse-amber { animation: pulse-white 3s ease-in-out infinite; }
+
+/* ── Typing cursor ── */
+@keyframes typing { from { width: 0; } to { width: 100%; } }
+
+/* ── White text glow for headers ── */
+.glow {
+  text-shadow: 0 0 10px rgba(255,255,255,0.5), 0 0 20px rgba(255,255,255,0.2);
+}
