@@ -3,13 +3,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const LINKS = [
-  { href: "/",         label: "HOME"    },
-  { href: "/summon",   label: "SUMMON"  },
-  { href: "/lore",     label: "LORE"    },
-  { href: "/divisions",label: "DIVS"    },
-  { href: "/factory",  label: "FACTORY" },
-  { href: "/mint",     label: "MINT"    },
-  { href: "/verify",   label: "VERIFY"  },
+  { href: "/",       label: "HOME"   },
+  { href: "/summon", label: "SUMMON" },
+  { href: "/mint",   label: "MINT"   },
 ];
 
 export default function Nav() {
