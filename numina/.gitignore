@@ -24,10 +24,6 @@ tsconfig.tsbuildinfo
 .env.test.local
 .env.production.local
 
-# ── Runtime / local data ───────────────────────────────────────
-# submissions.json is written at runtime by the factory API
-data/submissions.json
-
 # ── Deployment ─────────────────────────────────────────────────
 .vercel/
 
