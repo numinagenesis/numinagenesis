@@ -14,9 +14,8 @@ export default function LorePage() {
             WHO ARE<br />THE NUMINA?
           </h1>
           <p className="mono text-base text-muted leading-relaxed max-w-2xl">
-            4,444 soul fragments. Each one born from the intersection of human expertise
-            and on-chain history. Before you mint, they exist in superposition — all
-            possible, none real.
+            4,444 soul fragments. Each one a discipline, a history, a voice.
+            Before you mint: all possible, none real.
           </p>
           <p className="mono text-base text-muted leading-relaxed max-w-2xl mt-4">
             The moment you collapse one, it becomes yours. Forever. Undeniably. Provably.
@@ -69,8 +68,8 @@ export default function LorePage() {
               </p>
               <hr className="chain-border mb-6" />
               <p className="mono text-sm text-muted leading-relaxed">
-                They build the infrastructure of tomorrow. Six divisions. Each one a
-                discipline. Together, they make things that last.
+                Six divisions. Each one a discipline. They ship. They secure.
+                They architect. They build things that don't break.
               </p>
               <div className="mt-6 flex flex-wrap gap-2">
                 {["The Architect","The Artisan","The Navigator","The Analyst","The Cipher","The Oracle"].map(d => (
@@ -90,8 +89,8 @@ export default function LorePage() {
               </p>
               <hr className="chain-border mb-6" />
               <p className="mono text-sm text-muted leading-relaxed">
-                They shape the culture around it. Six divisions. Each one a force.
-                Together, they define what NUMINA means.
+                Six divisions. Each one a signal. They move the conversation.
+                They spread the word. They decide what NUMINA means.
               </p>
               <div className="mt-6 flex flex-wrap gap-2">
                 {["The Herald","The Weaver","The Catalyst","The Signal","The Strategist","The Ghost"].map(d => (

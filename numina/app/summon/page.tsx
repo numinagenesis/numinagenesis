@@ -355,7 +355,7 @@ export default function SummonPage() {
                 {div.name.toUpperCase()} SOUL COLLAPSED.
               </p>
               <p className="mono text-sm text-muted leading-relaxed">
-                Your agent exists. Deploy a task to see what it can do.
+                Collapsed. Alive. Give it something to do.
               </p>
               <button onClick={()=>setStage("tasking")} className="btn-amber">► DEPLOY TASK</button>
             </div>
@@ -401,7 +401,7 @@ export default function SummonPage() {
               </div>
               <div className="px-4 py-3" style={{borderTop:"1px solid #222222",background:"#080808"}}>
                 <p className="mono text-[10px] text-dim">
-                  Mint this agent to log this work on-chain forever.
+                  Mint. Or this never happened.
                 </p>
               </div>
             </div>

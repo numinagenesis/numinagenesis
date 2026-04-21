@@ -92,11 +92,10 @@ export default function DivisionsPage() {
       <div className="mb-12">
         <p className="pixel text-[8px] text-dim mb-3">// 12 DIVISIONS</p>
         <h1 className="pixel text-[16px] text-primary leading-loose mb-4">
-          12 DIVISIONS.<br />INFINITE COMBOS.
+          12 DIVISIONS.<br />ONE CHAIN.
         </h1>
         <p className="mono text-sm text-muted max-w-xl">
-          Every NUMINA belongs to one division. Click any division to preview its soul,
-          sample output, and rarity.
+          12 divisions. Each one a discipline. Click to see its soul.
         </p>
       </div>
 

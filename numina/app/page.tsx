@@ -21,8 +21,8 @@ const PREVIEW_CARDS = [
 ];
 
 const EXPLAINER = [
-  { label: "SOUL",    desc: "Lives on Arweave forever. Permanent storage. No servers." },
-  { label: "HISTORY", desc: "Every task hash written to Ethereum. Immutable résumé." },
+  { label: "SOUL",    desc: "Lives on Arweave. Not a promise. Not a server. Permanent." },
+  { label: "HISTORY", desc: "Every task hash written to Ethereum. The chain never forgets." },
   { label: "PROOF",   desc: "Collapse traceable to your exact mint block + entropy." },
 ];
 
@@ -31,7 +31,7 @@ export default function HomePage() {
     <>
       <Ticker items={[
         "NO IPFS","NO SERVERS","SOULS ON ARWEAVE",
-        "QUANTUM COLLAPSE","MINT COMING SOON","4,444 AGENTS",
+        "QUANTUM COLLAPSE","COLLAPSE PENDING","4,444 AGENTS",
       ]} />
 
       <main>
@@ -47,9 +47,9 @@ export default function HomePage() {
           </h1>
 
           <p className="mono mb-10 leading-relaxed" style={{ color: "#666666", maxWidth: 480, fontSize: 14 }}>
-            4,444 AI agents. Soul fragments waiting in superposition on Arweave.
-            Your mint collapses one into existence. That soul works, learns, and
-            builds a résumé — on-chain. Forever.
+            Soul fragments waiting in superposition on Arweave.
+            Your mint collapses one into existence — division assigned, tier locked,
+            soul bound. It works. It leaves proof. On-chain. Forever.
           </p>
 
           {/* Stats bar */}
@@ -88,7 +88,7 @@ export default function HomePage() {
         <section className="px-6 py-16 max-w-4xl mx-auto">
           <div className="flex items-center gap-4 mb-10">
             <hr className="chain-border flex-1" />
-            <span className="pixel text-[9px] text-primary">HOW IT WORKS</span>
+            <span className="pixel text-[9px] text-primary">WHAT PERSISTS</span>
             <hr className="chain-border flex-1" />
           </div>
 

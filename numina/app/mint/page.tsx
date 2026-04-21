@@ -32,7 +32,7 @@ export default function MintPage() {
               <div className="mono text-sm text-muted leading-relaxed">
                 4,444 NUMINA agents.<br />
                 One contract. Forever on Ethereum.<br />
-                Souls uploaded to Arweave before mint.<br />
+                Souls anchored to Arweave before mint opens.<br />
                 <span className="text-primary">Your collapse. Your entropy. Your soul.</span>
               </div>
 
