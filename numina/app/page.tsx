@@ -52,8 +52,8 @@ export default function HomePage() {
             soul bound. It works. It leaves proof. On-chain. Forever.
           </p>
 
-          {/* Stats bar */}
-          <div className="grid grid-cols-4 gap-6 mb-12 w-full max-w-lg">
+          {/* Stats bar — 2×2 on mobile, single row on sm+ */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mb-12 w-full max-w-lg">
             {STATS.map(({ value, label }) => (
               <div key={label} className="flex flex-col items-center gap-1">
                 <span className="pixel" style={{ fontSize: "clamp(14px,3vw,22px)", color: "#FFFFFF" }}>{value}</span>
@@ -62,10 +62,10 @@ export default function HomePage() {
             ))}
           </div>
 
-          {/* CTAs */}
-          <div className="flex flex-wrap gap-4 justify-center">
-            <Link href="/summon" className="btn-amber">► ENTER SUMMON</Link>
-            <button className="btn-outline">NOTIFY ME</button>
+          {/* CTAs — stacked full-width on mobile */}
+          <div className="flex flex-col sm:flex-row gap-3 justify-center w-full max-w-xs sm:max-w-none">
+            <Link href="/summon" className="btn-amber w-full sm:w-auto text-center">► ENTER SUMMON</Link>
+            <button className="btn-outline w-full sm:w-auto">NOTIFY ME</button>
           </div>
         </section>
 
@@ -77,7 +77,7 @@ export default function HomePage() {
             <hr className="chain-border flex-1" />
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             {PREVIEW_CARDS.map((card, i) => (
               <AgentCard key={i} {...card} revealed={card.rarity !== "classified"} />
             ))}
@@ -118,10 +118,10 @@ export default function HomePage() {
               ))}
             </div>
             <hr className="chain-border w-full" />
-            <div className="flex flex-wrap gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-3 justify-center w-full">
               <a href="https://twitter.com/numina_xyz" target="_blank" rel="noopener noreferrer"
-                 className="btn-outline">FOLLOW @NUMINA</a>
-              <Link href="/summon" className="btn-amber">► TRY SUMMON</Link>
+                 className="btn-outline w-full sm:w-auto text-center">FOLLOW @NUMINA</a>
+              <Link href="/summon" className="btn-amber w-full sm:w-auto text-center">► TRY SUMMON</Link>
             </div>
           </div>
         </section>

@@ -256,7 +256,7 @@ export default function SummonPage() {
           <p className="pixel text-[7px] text-dim mb-2">// SOUL COLLAPSE IN PROGRESS</p>
           <h2 className="pixel text-primary" style={{fontSize:"clamp(12px,2vw,18px)"}}>COLLAPSING...</h2>
         </div>
-        <div className="grid grid-cols-5 gap-3">
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
           {[
             { label:"DIVISION", finalValue: DIVISIONS[agent.division].name.toUpperCase(), lockDelay: 800  },
             { label:"TIER",     finalValue: TIERS[agent.tier].name.toUpperCase(),          lockDelay: 1800 },
@@ -308,9 +308,9 @@ export default function SummonPage() {
                 ["QUANTUM STATE", "RESOLVED"],
                 ["ENTROPY",       agent.entropy],
               ].map(([k,v])=>(
-                <div key={k} className="flex justify-between gap-2 py-0.5">
+                <div key={k} className="flex justify-between gap-2 py-0.5 min-w-0">
                   <span className="mono text-[10px] text-dim shrink-0">{k}</span>
-                  <span className="mono text-[10px] text-primary text-right break-all">{v}</span>
+                  <span className="mono text-[10px] text-primary text-right truncate min-w-0">{v}</span>
                 </div>
               ))}
             </div>
@@ -334,15 +334,15 @@ export default function SummonPage() {
           </div>
 
           {/* Action buttons — outside cardRef so they don't appear in the PNG */}
-          <div className="flex flex-wrap gap-2">
-            <button onClick={saveCard} disabled={saving} className="btn-ghost">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
+            <button onClick={saveCard} disabled={saving} className="btn-ghost w-full sm:w-auto">
               {saving ? "SAVING..." : "↓ SAVE"}
             </button>
-            <button onClick={shareOnX} className="btn-ghost">↗ SHARE</button>
+            <button onClick={shareOnX} className="btn-ghost w-full sm:w-auto">↗ SHARE</button>
             {stage === "revealed" && (
-              <button onClick={()=>setStage("tasking")} className="btn-outline">► DEPLOY TASK</button>
+              <button onClick={()=>setStage("tasking")} className="btn-outline w-full sm:w-auto">► DEPLOY TASK</button>
             )}
-            <button onClick={reset} className="btn-ghost">↺ AGAIN</button>
+            <button onClick={reset} className="btn-ghost w-full sm:w-auto">↺ AGAIN</button>
           </div>
         </div>
 
@@ -357,7 +357,7 @@ export default function SummonPage() {
               <p className="mono text-sm text-muted leading-relaxed">
                 Collapsed. Alive. Give it something to do.
               </p>
-              <button onClick={()=>setStage("tasking")} className="btn-amber">► DEPLOY TASK</button>
+              <button onClick={()=>setStage("tasking")} className="btn-amber w-full">► DEPLOY TASK</button>
             </div>
           )}
 
@@ -414,7 +414,7 @@ export default function SummonPage() {
             <p className="mono text-[11px] text-muted mb-4">
               Lock this soul forever. On Ethereum. Permanent.
             </p>
-            <button className="btn-outline w-full" disabled>COMING SOON</button>
+            <button className="btn-outline w-full" disabled style={{ opacity: 0.3, cursor: "not-allowed" }}>COMING SOON</button>
           </div>
         </div>
       </div>

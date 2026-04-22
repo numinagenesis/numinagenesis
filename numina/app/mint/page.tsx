@@ -62,10 +62,10 @@ export default function MintPage() {
               <hr className="chain-border" />
 
               {/* CTAs */}
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <div className="flex flex-col sm:flex-row gap-3 justify-center w-full">
                 <a href="https://twitter.com/numina_xyz" target="_blank" rel="noopener noreferrer"
-                   className="btn-outline text-center">FOLLOW @NUMINA</a>
-                <Link href="/summon" className="btn-amber text-center">► TRY SUMMON</Link>
+                   className="btn-outline text-center w-full sm:w-auto">FOLLOW @NUMINA</a>
+                <Link href="/summon" className="btn-amber text-center w-full sm:w-auto">► TRY SUMMON</Link>
               </div>
             </div>
 

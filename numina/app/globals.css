@@ -150,6 +150,10 @@ body::after {
   color: #FFFFFF;
   border: 2px solid #FFFFFF;
   padding: 12px 20px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   transition: background 0.1s, color 0.1s, transform 0.1s, box-shadow 0.1s;
   text-transform: uppercase;
@@ -173,6 +177,10 @@ body::after {
   color: #AAAAAA;
   border: 2px solid #444444;
   padding: 12px 20px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   transition: background 0.1s, color 0.1s, box-shadow 0.1s;
   text-transform: uppercase;
@@ -185,6 +193,7 @@ body::after {
   text-shadow: none;
   box-shadow: none;
 }
+.btn-outline:disabled { opacity: 0.3; cursor: not-allowed; }
 
 .btn-ghost {
   font-family: "Press Start 2P", monospace;
@@ -193,6 +202,10 @@ body::after {
   color: #666666;
   border: 1px solid #333333;
   padding: 10px 16px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   transition: border-color 0.1s, color 0.1s;
 }
@@ -200,6 +213,7 @@ body::after {
   border-color: #AAAAAA;
   color: #FFFFFF;
 }
+.btn-ghost:disabled { opacity: 0.3; cursor: not-allowed; }
 
 /* ── Cards ── */
 .numina-card {
