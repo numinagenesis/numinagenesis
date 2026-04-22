@@ -1,12 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DIVISIONS, type DivisionKey } from "@/lib/divisions";
 
-async function fetchPersona(url: string, fallback: string): Promise<string> {
+/**
+ * Pick one URL at random from the personas array and fetch it.
+ * Falls back to the division's fallbackPersona if:
+ *   - personas array is empty
+ *   - fetch throws
+ *   - response is not ok
+ */
+async function pickAndFetchPersona(
+  personas: string[],
+  fallback:  string,
+): Promise<{ text: string; source: "remote" | "fallback"; url?: string }> {
+  if (personas.length === 0) {
+    return { text: fallback, source: "fallback" };
+  }
+
+  const url = personas[Math.floor(Math.random() * personas.length)];
+
   try {
-    const res = await fetch(url, { next: { revalidate: 3600 } });
-    if (res.ok) return await res.text();
-  } catch {}
-  return fallback;
+    const res = await fetch(url, {
+      next: { revalidate: 3600 },
+    });
+    if (res.ok) {
+      const text = await res.text();
+      return { text, source: "remote", url };
+    }
+  } catch {
+    // network error — fall through to fallback
+  }
+
+  return { text: fallback, source: "fallback" };
 }
 
 export async function POST(req: NextRequest) {
@@ -25,13 +49,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "OPENROUTER_API_KEY not configured." }, { status: 500 });
   }
 
-  const persona = await fetchPersona(div.personaUrl, div.fallbackPersona);
+  // Pick one persona randomly, fetch it, fall back if needed
+  const persona = await pickAndFetchPersona(div.personas, div.fallbackPersona);
 
-  const systemPrompt = `${persona}
+  // Structured system prompt: persona base + NUMINA context overlay
+  const systemPrompt = `${persona.text}
 
 ---
+NUMINA CONTEXT:
+${div.web3Overlay}
+
+If asked something outside your expertise, respond:
+"That is not my domain. I am ${div.name.toUpperCase()}. Give me a task related to ${div.description.toLowerCase()}"
+
 You are a NUMINA agent. Division: ${div.name.toUpperCase()}. Tier: ${(tier ?? "Operator").toUpperCase()}.
-CC0 — all output belongs to the world. Permanent. On-chain.
 Be direct. Deliver real, usable output. No fluff. No disclaimers.`;
 
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -39,7 +70,7 @@ Be direct. Deliver real, usable output. No fluff. No disclaimers.`;
     headers: {
       "Content-Type":  "application/json",
       "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-      "HTTP-Referer":  "https://numina.xyz",
+      "HTTP-Referer":  "https://numinagenesis.vercel.app",
       "X-Title":       "NUMINA Agent",
     },
     body: JSON.stringify({
@@ -61,9 +92,11 @@ Be direct. Deliver real, usable output. No fluff. No disclaimers.`;
   }
 
   return NextResponse.json({
-    output:   data.choices[0].message.content,
-    division: div.name,
-    tier:     tier ?? "Operator",
-    model:    data.model ?? "auto",
+    output:        data.choices[0].message.content,
+    division:      div.name,
+    tier:          tier ?? "Operator",
+    model:         data.model ?? "auto",
+    personaSource: persona.source,
+    personaUrl:    persona.url ?? null,
   });
 }
