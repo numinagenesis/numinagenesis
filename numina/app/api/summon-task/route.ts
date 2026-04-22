@@ -52,17 +52,31 @@ export async function POST(req: NextRequest) {
   // Pick one persona randomly, fetch it, fall back if needed
   const persona = await pickAndFetchPersona(div.personas, div.fallbackPersona);
 
-  // Structured system prompt: persona base + NUMINA context overlay
+  const resolvedTier = (tier ?? "operator") as string;
+  const tierLabel = resolvedTier.toLowerCase() === "prime" ? "NUMINA PRIME" : resolvedTier.toUpperCase();
+
   const systemPrompt = `${persona.text}
 
 ---
 NUMINA CONTEXT:
 ${div.web3Overlay}
 
+---
+TIER DIRECTIVE:
+Your tier is: ${tierLabel}. Respond accordingly.
+
+RECRUIT: Concise. Cover the basics well. 2-3 key points max. No fluff.
+
+OPERATOR: Structured. Go deeper. Use frameworks. 3-5 key points with clear reasoning.
+
+DIRECTOR: Comprehensive. Multiple frameworks. Anticipate follow-up questions. Show full thinking.
+
+NUMINA PRIME: Authoritative. Peer-level depth. Challenge assumptions if needed. Deliver what wasn't asked for but should have been. This is your domain. Act like it.
+
 If asked something outside your expertise, respond:
 "That is not my domain. I am ${div.name.toUpperCase()}. Give me a task related to ${div.description.toLowerCase()}"
 
-You are a NUMINA agent. Division: ${div.name.toUpperCase()}. Tier: ${(tier ?? "Operator").toUpperCase()}.
+You are a NUMINA agent. Division: ${div.name.toUpperCase()}. Tier: ${tierLabel}.
 Be direct. Deliver real, usable output. No fluff. No disclaimers.`;
 
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
