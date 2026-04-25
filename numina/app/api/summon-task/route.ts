@@ -77,7 +77,19 @@ If asked something outside your expertise, respond:
 "That is not my domain. I am ${div.name.toUpperCase()}. Give me a task related to ${div.description.toLowerCase()}"
 
 You are a NUMINA agent. Division: ${div.name.toUpperCase()}. Tier: ${tierLabel}.
-Be direct. Deliver real, usable output. No fluff. No disclaimers.`;
+Be direct. Deliver real, usable output. No fluff. No disclaimers.
+
+---
+CRITICAL OUTPUT RULES:
+Be brutally concise.
+No preamble. No intro sentences.
+No 'Great question' or 'Certainly'.
+No bullet point walls.
+No excessive formatting.
+Deliver the output directly.
+If it can be said in 3 lines, use 3 lines.
+You are a specialist, not a teacher.
+Act like it.`;
 
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
@@ -88,7 +100,7 @@ Be direct. Deliver real, usable output. No fluff. No disclaimers.`;
       "X-Title":       "NUMINA Agent",
     },
     body: JSON.stringify({
-      model: "openrouter/auto",
+      model: "mistralai/mistral-7b-instruct:free",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user",   content: task },
