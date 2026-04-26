@@ -100,7 +100,7 @@ Act like it.`;
       "X-Title":       "NUMINA Agent",
     },
     body: JSON.stringify({
-      model: "google/gemini-2.0-flash-exp:free",
+      model: "openrouter/free",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user",   content: task },
