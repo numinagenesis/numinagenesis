@@ -102,8 +102,10 @@ export default function SummonPage() {
   const [taskErr, setTaskErr] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Ref for the agent card DOM node — used by html2canvas
-  const cardRef = useRef<HTMLDivElement>(null);
+  // saveRef = full capture target (card + optional task panel)
+  // taskPanelRef = hidden task output section, shown only during save
+  const saveRef     = useRef<HTMLDivElement>(null);
+  const taskPanelRef = useRef<HTMLDivElement>(null);
 
   const summon = useCallback(() => {
     const newAgent = generateAgent();
@@ -138,23 +140,39 @@ export default function SummonPage() {
     }
   }
 
-  // ── SAVE: capture agent card as PNG ──────────────────────────────────────────
+  // ── SAVE: capture card (+ task output if done) as PNG ────────────────────────
   async function saveCard() {
-    if (!cardRef.current || !agent || !div) return;
+    if (!saveRef.current || !agent || !div) return;
+
+    const hasOutput = stage === "done" && !!output;
+
+    // Show the hidden task panel before capture
+    if (hasOutput && taskPanelRef.current) {
+      taskPanelRef.current.style.display = "block";
+    }
+
     setSaving(true);
     try {
+      // Wait one frame so the DOM reflects the panel being shown
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+
       const html2canvas = (await import("html2canvas")).default;
-      const canvas = await html2canvas(cardRef.current, {
+      const canvas = await html2canvas(saveRef.current, {
         backgroundColor: "#000000",
         scale: 2,
         useCORS: true,
         logging: false,
       });
       const link = document.createElement("a");
-      link.download = `NUMINA-#${agent.tokenId}-${div.name.replace(/\s+/g, "-")}.png`;
+      const suffix = hasOutput ? "-output" : "";
+      link.download = `NUMINA-#${agent.tokenId}-${div.name.replace(/\s+/g, "-")}${suffix}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
     } finally {
+      // Always re-hide the panel after capture
+      if (taskPanelRef.current) {
+        taskPanelRef.current.style.display = "none";
+      }
       setSaving(false);
     }
   }
@@ -278,8 +296,9 @@ export default function SummonPage() {
         {/* Left: Agent card */}
         <div className="fade-up flex flex-col gap-4">
 
-          {/* cardRef wraps only the visual card — not the buttons below */}
-          <div ref={cardRef} className="numina-card bracketed p-0">
+          {/* saveRef wraps card + hidden task panel — everything html2canvas captures */}
+          <div ref={saveRef} style={{ background: "#000000" }}>
+          <div className="numina-card bracketed p-0">
             <div className="flex items-center justify-between px-4 py-2"
                  style={{borderBottom:"1px solid #222222",background:"#080808"}}>
               <span className="pixel text-[7px] text-dim">NUMINA #{agent.tokenId}</span>
@@ -331,9 +350,27 @@ export default function SummonPage() {
                 </div>
               ))}
             </div>
+          </div>{/* end card */}
+
+          {/* Task output panel — hidden in UI, shown only during save capture */}
+          <div ref={taskPanelRef} style={{ display: "none", background: "#000000", padding: "16px 16px 20px" }}>
+            <div style={{ height: 1, background: "#FFFFFF", marginBottom: 16 }} />
+            <p className="pixel text-[7px] text-dim mb-3">// TASK DEPLOYED</p>
+            <p className="mono text-[11px] mb-5 leading-relaxed" style={{ color: "#AAAAAA" }}>
+              {task.slice(0, 200)}{task.length > 200 ? "..." : ""}
+            </p>
+            <p className="pixel text-[7px] text-dim mb-3">// OUTPUT</p>
+            <p className="mono text-[11px] mb-5 leading-relaxed" style={{ color: "#FFFFFF", whiteSpace: "pre-wrap" }}>
+              {output.slice(0, 300)}{output.length > 300 ? "..." : ""}
+            </p>
+            <p className="pixel text-[7px] text-center" style={{ color: "#444444" }}>
+              MINT TO LOG THIS FOREVER
+            </p>
           </div>
 
-          {/* Action buttons — outside cardRef so they don't appear in the PNG */}
+          </div>{/* end saveRef */}
+
+          {/* Action buttons — outside saveRef so they don't appear in the PNG */}
           <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
             <button onClick={saveCard} disabled={saving} className="btn-ghost w-full sm:w-auto">
               {saving ? "SAVING..." : "↓ SAVE"}
