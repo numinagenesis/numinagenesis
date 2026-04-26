@@ -8,6 +8,7 @@ const LINKS = [
   { href: "/summon", label: "SUMMON" },
   { href: "/docs",   label: "DOCS"   },
   { href: "/mint",   label: "MINT"   },
+  { href: "/points", label: "POINTS" },
 ];
 
 export default function Nav() {
