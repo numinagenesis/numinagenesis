@@ -1,6 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DIVISIONS, type DivisionKey } from "@/lib/divisions";
 
+// ── Rate limiting (in-memory, per IP) ────────────────────────────────────────
+
+const RATE_LIMIT    = 5;
+const WINDOW_MS     = 60 * 60 * 1000; // 1 hour
+
+interface RateEntry { count: number; resetTime: number; }
+const rateMap = new Map<string, RateEntry>();
+
+function getIP(req: NextRequest): string {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
+    req.headers.get("x-real-ip") ??
+    "127.0.0.1"
+  );
+}
+
+function checkRateLimit(ip: string): { allowed: boolean; remaining: number } {
+  const now   = Date.now();
+  const entry = rateMap.get(ip);
+
+  if (!entry || now >= entry.resetTime) {
+    rateMap.set(ip, { count: 1, resetTime: now + WINDOW_MS });
+    return { allowed: true, remaining: RATE_LIMIT - 1 };
+  }
+
+  if (entry.count >= RATE_LIMIT) {
+    return { allowed: false, remaining: 0 };
+  }
+
+  entry.count += 1;
+  return { allowed: true, remaining: RATE_LIMIT - entry.count };
+}
+
 /**
  * Pick one URL at random from the personas array and fetch it.
  * Falls back to the division's fallbackPersona if:
@@ -34,6 +67,15 @@ async function pickAndFetchPersona(
 }
 
 export async function POST(req: NextRequest) {
+  const ip    = getIP(req);
+  const limit = checkRateLimit(ip);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Rate limit reached. Try again later." },
+      { status: 429 }
+    );
+  }
+
   const { division, tier, task } = await req.json();
 
   if (!division || !task) {
