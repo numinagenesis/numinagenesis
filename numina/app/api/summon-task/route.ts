@@ -100,7 +100,8 @@ Act like it.`;
       "X-Title":       "NUMINA Agent",
     },
     body: JSON.stringify({
-      model: "openrouter/free",
+      model:      "openrouter/free",
+      max_tokens: 500,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user",   content: task },
