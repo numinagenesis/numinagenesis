@@ -1,5 +1,8 @@
 "use client";
 
+// Prevent Next.js from statically rendering this page — admin always needs a fresh shell.
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect, useCallback } from "react";
 import { useDisconnect } from "wagmi";
 import { ConnectAndSignIn } from "@/components/ConnectAndSignIn";
