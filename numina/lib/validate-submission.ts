@@ -4,6 +4,8 @@ import { parseTweetUrl } from "@/lib/parse-tweet-url";
 import { fetchTweet, type TweetData } from "@/lib/fxtwitter";
 import { isThreadStarter } from "@/lib/detect-thread";
 
+const IS_DEV = process.env.NODE_ENV !== "production";
+
 // ── Config types (mirrored from admin/cards.tsx — kept in sync manually) ────
 
 type Rules = {
@@ -43,7 +45,8 @@ export type ValidationError = {
     | "low_followers"
     | "tweet_too_old"
     | "too_short"
-    | "no_mention";
+    | "no_mention"
+    | "self_mention_no_credit";
   message: string;
 };
 
@@ -85,9 +88,14 @@ export async function validateSubmission({
     return { ok: false, code: "invalid_url", message: parsed.error };
   }
 
-  const { tweetId, canonicalUrl, author: tweetAuthor } = parsed;
+  const { tweetId } = parsed;
+  // canonicalUrl may use "_" as author placeholder for mobile /i/ URLs.
+  // It will be rebuilt from fxtwitter data after the tweet is fetched.
+  let canonicalUrl = parsed.canonicalUrl;
 
   // ── Step 2: Uniqueness — tweet_id or canonical URL already submitted ─────
+  // tweet_id uniqueness is the reliable guard; canonical URL check is secondary
+  // (mobile URLs use _ as placeholder so tweet_url may not match a prior submission).
 
   const { data: existing } = await supabase
     .from("submissions")
@@ -145,6 +153,27 @@ export async function validateSubmission({
 
   const tweet = fetched.data;
 
+  // Resolve the definitive tweet author and rebuild canonical URL.
+  // fxtwitter always returns the real screen_name — use that as the
+  // authoritative source regardless of what the submitted URL contained.
+  const tweetAuthor = tweet.author.screen_name || parsed.author || "";
+  if (tweetAuthor) {
+    canonicalUrl = `https://x.com/${tweetAuthor}/status/${tweetId}`;
+  }
+
+  // Re-check uniqueness against the now-canonical URL if it changed
+  // (e.g. mobile /i/ URL resolves to real author URL that was already submitted)
+  if (tweetAuthor && parsed.author === null) {
+    const { data: existingCanon } = await supabase
+      .from("submissions")
+      .select("id")
+      .eq("tweet_url", canonicalUrl)
+      .limit(1);
+    if (existingCanon && existingCanon.length > 0) {
+      return { ok: false, code: "duplicate", message: "Already submitted" };
+    }
+  }
+
   // ── Step 6: Rule validation ──────────────────────────────────────────────
 
   // Account age
@@ -187,8 +216,30 @@ export async function validateSubmission({
 
   // Mention check
   const xHandle = await getConfig<XHandle>("x_handle");
-  const requiredHandle = xHandle.handle.toLowerCase();
-  if (!tweet.mentioned_handles.includes(requiredHandle)) {
+  const requiredHandle = xHandle.handle.toLowerCase().trim();
+
+  // Self-mention guard: reject if the tweet was posted FROM the configured handle itself
+  const posterHandle = tweet.author.screen_name.toLowerCase().trim();
+  if (posterHandle === requiredHandle) {
+    return {
+      ok: false,
+      code: "self_mention_no_credit",
+      message: `Posting from @${xHandle.handle} doesn't count. Mention @${xHandle.handle} from another account.`,
+    };
+  }
+
+  // Verify the tweet mentions the required handle
+  const mentionedHandles = tweet.mentioned_handles.map((h) => h.toLowerCase().trim());
+
+  if (IS_DEV) {
+    console.log("[validate] mention check:");
+    console.log("  expected handle :", requiredHandle);
+    console.log("  tweet text      :", tweet.text);
+    console.log("  mentioned_handles:", mentionedHandles);
+    console.log("  includes match  :", mentionedHandles.includes(requiredHandle));
+  }
+
+  if (!mentionedHandles.includes(requiredHandle)) {
     return {
       ok: false,
       code: "no_mention",

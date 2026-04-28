@@ -1,5 +1,6 @@
 const FXTWITTER_BASE = "https://api.fxtwitter.com";
 const TIMEOUT_MS = 10_000;
+const IS_DEV = process.env.NODE_ENV !== "production";
 
 // ── Normalized tweet shape ────────────────────────────────────────────────────
 
@@ -44,6 +45,7 @@ type FxMedia = {
 
 type FxUserMention = {
   screen_name?: string;
+  name?: string;
 };
 
 type FxEntities = {
@@ -67,7 +69,10 @@ type FxTweet = {
   quote?: unknown;
   replying_to?: string;
   replying_to_status?: string;
+  /** Structured user mentions — primary source */
   entities?: FxEntities;
+  /** Alternate mentions field used by some fxtwitter response variants */
+  mentions?: FxUserMention[];
   thread?: FxThread;
 };
 
@@ -96,6 +101,41 @@ function normalizeDate(raw: string | undefined): string {
   // Twitter legacy format: "Mon Jan 01 00:00:00 +0000 2020"
   const d = new Date(raw);
   return isNaN(d.getTime()) ? new Date(0).toISOString() : d.toISOString();
+}
+
+/**
+ * Extracts all mentioned handles from a tweet using three sources, merged
+ * into a deduplicated, lowercase array with no @ prefix.
+ *
+ * Sources (in priority order, all merged):
+ *   1. tweet.entities.user_mentions[].screen_name  (structured, preferred)
+ *   2. tweet.mentions[].screen_name                (alternate fxtwitter field)
+ *   3. /@(\w{1,15})/g regex on tweet.text          (reliable fallback)
+ */
+function extractMentions(tweet: FxTweet): string[] {
+  const handleSet = new Set<string>();
+
+  // Source 1: entities.user_mentions
+  (tweet.entities?.user_mentions ?? []).forEach((m) => {
+    const h = (m.screen_name ?? "").toLowerCase().trim();
+    if (h) handleSet.add(h);
+  });
+
+  // Source 2: tweet.mentions (alternate field present in some fxtwitter versions)
+  (tweet.mentions ?? []).forEach((m) => {
+    const h = (m.screen_name ?? "").toLowerCase().trim();
+    if (h) handleSet.add(h);
+  });
+
+  // Source 3: regex over raw tweet text — most reliable fallback
+  // Twitter/X usernames: 1–15 chars, alphanumeric + underscore
+  const textMentions = (tweet.text ?? "").match(/@(\w{1,15})/g) ?? [];
+  textMentions.forEach((m) => {
+    const h = m.slice(1).toLowerCase(); // strip @
+    if (h) handleSet.add(h);
+  });
+
+  return Array.from(handleSet);
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────
@@ -129,10 +169,18 @@ export async function fetchTweet(tweetId: string): Promise<FetchTweetResult> {
       return { ok: false, error: "unavailable" };
     }
 
+    // Dev: log the raw response so mention extraction can be debugged
+    if (IS_DEV) {
+      console.log("[fxtwitter] raw response for", tweetId, ":", JSON.stringify(json, null, 2));
+    }
+
     const tweet = json?.tweet;
 
     // Treat missing or tombstoned tweets as unavailable
     if (!tweet || !tweet.id || !tweet.text) {
+      if (IS_DEV) {
+        console.log("[fxtwitter] tweet unavailable — missing id/text. code:", json?.code, "message:", json?.message);
+      }
       return { ok: false, error: "unavailable" };
     }
 
@@ -140,11 +188,16 @@ export async function fetchTweet(tweetId: string): Promise<FetchTweetResult> {
     const accountCreatedAt = normalizeDate(author.joined ?? author.created_at);
     const tweetCreatedAt = normalizeDate(tweet.created_at);
 
-    // Mentioned handles — lowercase, no @
-    const userMentions = tweet.entities?.user_mentions ?? [];
-    const mentionedHandles = userMentions
-      .map((m) => (m.screen_name ?? "").toLowerCase())
-      .filter(Boolean);
+    // Extract mentions from all available sources
+    const mentionedHandles = extractMentions(tweet);
+
+    if (IS_DEV) {
+      console.log("[fxtwitter] tweet", tweetId, "— author:", author.screen_name,
+        "| text:", tweet.text,
+        "| entities.user_mentions:", tweet.entities?.user_mentions,
+        "| tweet.mentions:", tweet.mentions,
+        "| resolved mentioned_handles:", mentionedHandles);
+    }
 
     // Thread continuation count:
     // fxtwitter includes thread.tweets for self-reply threads.

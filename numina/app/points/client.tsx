@@ -54,6 +54,7 @@ const ERROR_MAP: Record<string, string> = {
   banned: "Wallet banned",
   fetch_failed: "Could not load tweet — please try again",
   campaign_inactive: "Campaign is paused",
+  self_mention_no_credit: "Posting from the campaign account doesn't count — mention it from your own account",
 };
 
 function friendlyError(code: string, serverMessage?: string): string {
