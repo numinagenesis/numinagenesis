@@ -63,7 +63,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { points, tweetData, canonicalUrl, tweetId, tweetAuthor } = result;
+  const { points, tweetData, canonicalUrl, tweetId, tweetAuthor, tweetTextHash } = result;
+  const xAccountId = tweetData.author.id || null;
   const now = new Date().toISOString();
 
   // ── STEP 1: Upsert wallet row ─────────────────────────────────────────────
@@ -103,6 +104,8 @@ export async function POST(req: NextRequest) {
       tweet_url: canonicalUrl,
       tweet_id: tweetId,
       tweet_author: tweetAuthor,
+      x_account_id: xAccountId,
+      tweet_text_hash: tweetTextHash,
       status: "approved",
       points_awarded: points,
       raw_data: tweetData,
@@ -160,6 +163,37 @@ export async function POST(req: NextRequest) {
     // Submission is recorded; points update failed. Log but don't 500 — user gets
     // their submission counted, points will be off but can be reconciled later.
     console.error("[submissions/create] wallet points update error", walletUpdateError);
+  }
+
+  // ── STEP 4: Upsert x_account_activity ────────────────────────────────────
+  //
+  // Tracks per-X-account submission activity for admin visibility.
+  // Non-critical — failure is logged and ignored.
+
+  if (xAccountId) {
+    const { data: actRow } = await supabaseAdmin
+      .from("x_account_activity")
+      .select("submission_count")
+      .eq("x_account_id", xAccountId)
+      .maybeSingle();
+
+    const newActCount = (actRow?.submission_count ?? 0) + 1;
+
+    const { error: actError } = await supabaseAdmin
+      .from("x_account_activity")
+      .upsert(
+        {
+          x_account_id: xAccountId,
+          x_handle: tweetData.author.screen_name || null,
+          submission_count: newActCount,
+          last_seen_at: now,
+        },
+        { onConflict: "x_account_id" }
+      );
+
+    if (actError) {
+      console.error("[submissions/create] x_account_activity upsert error", actError);
+    }
   }
 
   // ── Respond ───────────────────────────────────────────────────────────────

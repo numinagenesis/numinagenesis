@@ -28,6 +28,8 @@ type StandingData = {
   submissionCount: number;
   banned: boolean;
   recent: RecentSubmission[];
+  boundXHandle: string | null;
+  requireXBinding: boolean;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -55,18 +57,28 @@ const ERROR_MAP: Record<string, string> = {
   fetch_failed: "Could not load tweet — please try again",
   campaign_inactive: "Campaign is paused",
   self_mention_no_credit: "Posting from the campaign account doesn't count — mention it from your own account",
+  // sybil codes
+  x_binding_required: "Bind your X account before submitting",
+  wrong_x_account: "Tweet must come from your bound X account",
+  x_account_rate_limit: "Daily limit reached for this X account",
+  duplicate_content: "Tweet is too similar to a previous submission",
 };
 
 function friendlyError(code: string, serverMessage?: string): string {
-  // For rule violations, the server message is precise — use it.
-  const ruleViolation = new Set([
+  // For rule violations and sybil quality checks, the server message is precise — use it.
+  const useServerMessage = new Set([
     "account_too_new",
     "low_followers",
     "tweet_too_old",
     "too_short",
     "no_mention",
+    "wrong_x_account",
+    "x_account_rate_limit",
+    "account_low_following",
+    "account_too_quiet",
+    "no_profile_image",
   ]);
-  if (ruleViolation.has(code) && serverMessage) return serverMessage;
+  if (useServerMessage.has(code) && serverMessage) return serverMessage;
   return ERROR_MAP[code] ?? serverMessage ?? "Something went wrong";
 }
 
@@ -130,6 +142,162 @@ function ProgressBar({ value }: { value: number }) {
           transition: "width 0.4s ease",
         }}
       />
+    </div>
+  );
+}
+
+// ── Bind X account card ───────────────────────────────────────────────────────
+
+type BindStep = "idle" | "challenged" | "done";
+
+function BindXAccountCard({ onSuccess }: { onSuccess: () => void }) {
+  const [step, setStep] = useState<BindStep>("idle");
+  const [challenge, setChallenge] = useState<string | null>(null);
+  const [tweetUrl, setTweetUrl] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [challengeError, setChallengeError] = useState<string | null>(null);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+
+  async function getChallenge() {
+    setLoading(true);
+    setChallengeError(null);
+    try {
+      const res = await fetch("/api/x-binding/challenge", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to generate code");
+      setChallenge(data.challenge);
+      setStep("challenged");
+    } catch (e) {
+      setChallengeError(e instanceof Error ? e.message : "Failed to generate code");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function verify() {
+    if (!tweetUrl.trim() || loading) return;
+    setLoading(true);
+    setVerifyError(null);
+    try {
+      const res = await fetch("/api/x-binding/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tweetUrl: tweetUrl.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Verification failed");
+      setStep("done");
+      onSuccess();
+    } catch (e) {
+      setVerifyError(e instanceof Error ? e.message : "Verification failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const INPUT_STYLE: React.CSSProperties = {
+    background: "#080808",
+    border: "1px solid #2a2a2a",
+    color: "#FFFFFF",
+    padding: "10px 12px",
+    fontFamily: "Courier New, Courier, monospace",
+    fontSize: 12,
+    width: "100%",
+    outline: "none",
+  };
+
+  return (
+    <div
+      className="numina-card bracketed"
+      style={{ padding: "24px", background: "#040404" }}
+    >
+      <p className="pixel text-[7px] text-dim mb-4">// BIND X ACCOUNT</p>
+
+      {step === "done" ? (
+        <p className="pixel text-[7px]" style={{ color: "#44aa44" }}>
+          X ACCOUNT BOUND — you can now submit tweets
+        </p>
+      ) : step === "idle" ? (
+        <div className="flex flex-col gap-3">
+          <p className="mono text-xs" style={{ color: "#555555" }}>
+            Link your X account to submit tweets. Each wallet is bound to one X account.
+          </p>
+          <button
+            onClick={getChallenge}
+            disabled={loading}
+            className="btn-amber pixel text-[7px]"
+            style={{ width: "100%" }}
+          >
+            {loading ? "GENERATING..." : "GET CHALLENGE CODE"}
+          </button>
+          {challengeError && (
+            <p className="mono text-xs" style={{ color: "#FF4444" }}>
+              {challengeError}
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          <p className="mono text-xs" style={{ color: "#555555" }}>
+            Tweet the code below from your X account, then paste the tweet URL to verify.
+          </p>
+
+          {/* Challenge code display */}
+          <div
+            style={{
+              background: "#080808",
+              border: "1px solid #2a2a2a",
+              padding: "12px 16px",
+            }}
+          >
+            <p className="mono text-xs mb-1" style={{ color: "#444444" }}>
+              CHALLENGE CODE
+            </p>
+            <p
+              className="pixel text-[7px]"
+              style={{ color: "#FFFFFF", letterSpacing: "0.08em" }}
+            >
+              {challenge}
+            </p>
+          </div>
+
+          <input
+            type="text"
+            value={tweetUrl}
+            onChange={(e) => {
+              setTweetUrl(e.target.value);
+              setVerifyError(null);
+            }}
+            onKeyDown={(e) => e.key === "Enter" && verify()}
+            placeholder="https://x.com/yourhandle/status/..."
+            disabled={loading}
+            style={INPUT_STYLE}
+          />
+
+          <button
+            onClick={verify}
+            disabled={loading || !tweetUrl.trim()}
+            className="btn-amber pixel text-[7px]"
+            style={{ width: "100%" }}
+          >
+            {loading ? "VERIFYING..." : "VERIFY TWEET"}
+          </button>
+
+          {verifyError && (
+            <p className="mono text-xs" style={{ color: "#FF4444" }}>
+              {verifyError}
+            </p>
+          )}
+
+          <button
+            onClick={() => { setStep("idle"); setChallenge(null); setVerifyError(null); }}
+            className="btn-ghost pixel text-[7px]"
+            style={{ width: "100%" }}
+          >
+            GET NEW CODE
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -295,10 +463,22 @@ function StandingCard({
             </p>
           </div>
 
-          {/* Submission count */}
-          <p className="mono text-xs" style={{ color: "#444444" }}>
-            Total submissions: {data.submissionCount}
-          </p>
+          {/* Submission count + X binding status */}
+          <div className="flex flex-col gap-1">
+            <p className="mono text-xs" style={{ color: "#444444" }}>
+              Total submissions: {data.submissionCount}
+            </p>
+            {data.boundXHandle ? (
+              <p className="mono text-xs" style={{ color: "#444444" }}>
+                X account:{" "}
+                <span style={{ color: "#666666" }}>@{data.boundXHandle}</span>
+              </p>
+            ) : data.requireXBinding ? (
+              <p className="mono text-xs" style={{ color: "#664444" }}>
+                X account: not bound
+              </p>
+            ) : null}
+          </div>
 
           {/* Recent list */}
           <div className="flex flex-col gap-0">
@@ -436,7 +616,16 @@ export function PointsClient({ xHandle }: Props) {
       {/* STATE C — signed in */}
       {sessionAddr && (
         <>
-          <SubmitCard xHandle={xHandle} onSuccess={fetchStanding} />
+          {/* Bind X account (shown when binding is required and not yet done) */}
+          {standing?.requireXBinding && !standing?.boundXHandle && (
+            <BindXAccountCard onSuccess={fetchStanding} />
+          )}
+
+          {/* Submit card (hidden until binding satisfied, if binding is required) */}
+          {(!standing?.requireXBinding || standing?.boundXHandle) && (
+            <SubmitCard xHandle={xHandle} onSuccess={fetchStanding} />
+          )}
+
           <StandingCard data={standing} loading={standingLoading} />
         </>
       )}

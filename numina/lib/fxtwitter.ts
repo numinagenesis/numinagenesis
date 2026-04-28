@@ -8,8 +8,16 @@ export type TweetData = {
   id: string;
   text: string;
   author: {
+    /** Twitter user ID (string — exceeds 32-bit int). Used for X account binding. */
+    id: string;
     screen_name: string;
     followers: number;
+    /** Number of accounts this user follows. Used for quality check. */
+    following: number;
+    /** Total tweets ever sent by this account. Used for quality check. */
+    statuses_count: number;
+    /** Profile image URL. "default_profile" in URL or empty = no custom image. */
+    avatar_url: string;
     account_created_at: string; // ISO date string
   };
   created_at: string; // ISO date string
@@ -31,8 +39,19 @@ export type FetchTweetResult =
 // ── fxtwitter raw shapes (partial — only what we need) ────────────────────────
 
 type FxAuthor = {
+  /** Twitter user ID as string */
+  id?: string;
   screen_name?: string;
   followers?: number;
+  /** Following count (accounts this user follows) */
+  following?: number;
+  /** Total tweets — fxtwitter uses "statuses" or "tweets" depending on version */
+  statuses?: number;
+  tweets?: number;
+  statuses_count?: number;
+  /** Profile image URL */
+  avatar_url?: string;
+  profile_image_url?: string;
   /** ISO date or Twitter's "Mon Jan 01 00:00:00 +0000 2020" format */
   joined?: string;
   created_at?: string;
@@ -213,8 +232,12 @@ export async function fetchTweet(tweetId: string): Promise<FetchTweetResult> {
       id: String(tweet.id),
       text: tweet.text,
       author: {
+        id: String(author.id ?? ""),
         screen_name: author.screen_name ?? "",
         followers: author.followers ?? 0,
+        following: author.following ?? 0,
+        statuses_count: author.statuses_count ?? author.statuses ?? author.tweets ?? 0,
+        avatar_url: author.avatar_url ?? author.profile_image_url ?? "",
         account_created_at: accountCreatedAt,
       },
       created_at: tweetCreatedAt,

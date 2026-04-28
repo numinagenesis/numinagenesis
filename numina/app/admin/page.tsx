@@ -12,6 +12,8 @@ import {
   EarnRatesCard,
   RulesCard,
   TiersCard,
+  SybilRulesCard,
+  WalletToolsCard,
   type FullConfig,
 } from "./cards";
 
@@ -136,6 +138,8 @@ function StateC({
           <EarnRatesCard      initial={config.earn_rates} />
           <RulesCard          initial={config.rules} />
           <TiersCard          initial={config.tiers} />
+          <SybilRulesCard     initial={config.sybil_rules} />
+          <WalletToolsCard />
         </div>
       )}
     </main>

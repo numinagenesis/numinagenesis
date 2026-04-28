@@ -24,12 +24,22 @@ export type Rules = {
 };
 export type Tier = { name: string; threshold: number; reward: string | null };
 
+export type SybilRules = {
+  requireXBinding: boolean;
+  maxXAccountSubmissionsPerDay: number;
+  minTweetSimilarityDistance: number;
+  minAccountFollowingCount: number;
+  minAccountTotalTweets: number;
+  blockDefaultProfileImages: boolean;
+};
+
 export type FullConfig = {
   campaign_state: CampaignState;
   x_handle: XHandle;
   earn_rates: EarnRates;
   rules: Rules;
   tiers: Tier[];
+  sybil_rules?: SybilRules;
 };
 
 // ── Save hook ─────────────────────────────────────────────────────────────────
@@ -493,5 +503,192 @@ export function TiersCard({ initial }: { initial: Tier[] }) {
         + ADD TIER
       </button>
     </AdminCard>
+  );
+}
+
+// ── Card 6: Sybil Rules ───────────────────────────────────────────────────────
+
+const SYBIL_DEFAULTS: SybilRules = {
+  requireXBinding: false,
+  maxXAccountSubmissionsPerDay: 3,
+  minTweetSimilarityDistance: 0.7,
+  minAccountFollowingCount: 0,
+  minAccountTotalTweets: 0,
+  blockDefaultProfileImages: false,
+};
+
+export function SybilRulesCard({ initial }: { initial?: SybilRules }) {
+  const [sr, setSr] = useState<SybilRules>(initial ?? { ...SYBIL_DEFAULTS });
+  const { status, error, save } = useSave();
+
+  function updateNum(key: keyof SybilRules, raw: string) {
+    const n = parseFloat(raw);
+    if (!Number.isNaN(n) && n >= 0) setSr((prev) => ({ ...prev, [key]: n }));
+  }
+
+  return (
+    <AdminCard
+      title="// SYBIL PROTECTION"
+      saveLabel="UPDATE SYBIL RULES"
+      saveStatus={status}
+      saveError={error}
+      onSave={() => save("sybil_rules", sr)}
+      helper="Changes take effect within 30s (config cache TTL)."
+    >
+      {/* X Account Binding */}
+      <Field label="Require X Account Binding">
+        <div className="flex items-center gap-4 mt-1">
+          <button
+            onClick={() => setSr((prev) => ({ ...prev, requireXBinding: !prev.requireXBinding }))}
+            className={sr.requireXBinding ? "btn-amber pixel text-[7px]" : "btn-outline pixel text-[7px]"}
+          >
+            {sr.requireXBinding ? "● ENABLED" : "○ DISABLED"}
+          </button>
+          <span className="mono text-xs" style={{ color: "#444444" }}>
+            {sr.requireXBinding
+              ? "Users must bind X account before submitting"
+              : "Binding optional — submissions accepted from any account"}
+          </span>
+        </div>
+      </Field>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Field label="Max X Account Submissions / Day">
+          <input
+            type="number"
+            min={0}
+            value={sr.maxXAccountSubmissionsPerDay}
+            onChange={(e) => updateNum("maxXAccountSubmissionsPerDay", e.target.value)}
+            style={INPUT}
+          />
+        </Field>
+
+        <Field label="Min Tweet Similarity Distance (0–1)">
+          <input
+            type="number"
+            min={0}
+            max={1}
+            step={0.05}
+            value={sr.minTweetSimilarityDistance}
+            onChange={(e) => updateNum("minTweetSimilarityDistance", e.target.value)}
+            style={INPUT}
+          />
+        </Field>
+
+        <Field label="Min Account Following Count">
+          <input
+            type="number"
+            min={0}
+            value={sr.minAccountFollowingCount}
+            onChange={(e) => updateNum("minAccountFollowingCount", e.target.value)}
+            style={INPUT}
+          />
+        </Field>
+
+        <Field label="Min Account Total Tweets">
+          <input
+            type="number"
+            min={0}
+            value={sr.minAccountTotalTweets}
+            onChange={(e) => updateNum("minAccountTotalTweets", e.target.value)}
+            style={INPUT}
+          />
+        </Field>
+      </div>
+
+      {/* Block default profile images */}
+      <Field label="Block Default Profile Images">
+        <div className="flex items-center gap-4 mt-1">
+          <button
+            onClick={() => setSr((prev) => ({ ...prev, blockDefaultProfileImages: !prev.blockDefaultProfileImages }))}
+            className={sr.blockDefaultProfileImages ? "btn-amber pixel text-[7px]" : "btn-outline pixel text-[7px]"}
+          >
+            {sr.blockDefaultProfileImages ? "● ENABLED" : "○ DISABLED"}
+          </button>
+          <span className="mono text-xs" style={{ color: "#444444" }}>
+            {sr.blockDefaultProfileImages
+              ? "Accounts without custom avatar are rejected"
+              : "Default profile images allowed"}
+          </span>
+        </div>
+      </Field>
+    </AdminCard>
+  );
+}
+
+// ── Card 7: Wallet Tools ──────────────────────────────────────────────────────
+
+type UnbindStatus = "idle" | "loading" | "done" | "error";
+
+export function WalletToolsCard() {
+  const [address, setAddress] = useState("");
+  const [unbindStatus, setUnbindStatus] = useState<UnbindStatus>("idle");
+  const [unbindMsg, setUnbindMsg] = useState<string | null>(null);
+
+  async function handleUnbind() {
+    const addr = address.trim().toLowerCase();
+    if (!addr) { alert("Enter a wallet address first"); return; }
+    if (!window.confirm(`Unbind X account from ${addr}?`)) return;
+
+    setUnbindStatus("loading");
+    setUnbindMsg(null);
+    try {
+      const res = await fetch("/api/admin/unbind-wallet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ walletAddress: addr }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed");
+      setUnbindStatus("done");
+      setUnbindMsg(`X binding cleared for ${addr}`);
+    } catch (e) {
+      setUnbindStatus("error");
+      setUnbindMsg(e instanceof Error ? e.message : "Unknown error");
+    }
+  }
+
+  return (
+    <div
+      className="numina-card bracketed"
+      style={{ padding: "24px", background: "#040404" }}
+    >
+      <p className="pixel text-[7px] text-dim mb-6">// WALLET TOOLS</p>
+
+      <div className="flex flex-col gap-4">
+        {/* Unbind X account */}
+        <Field label="Wallet Address">
+          <input
+            type="text"
+            value={address}
+            onChange={(e) => {
+              setAddress(e.target.value);
+              setUnbindStatus("idle");
+              setUnbindMsg(null);
+            }}
+            placeholder="0x..."
+            style={INPUT}
+          />
+        </Field>
+
+        <button
+          onClick={handleUnbind}
+          disabled={unbindStatus === "loading"}
+          className="btn-ghost pixel text-[7px]"
+          style={{ width: "100%" }}
+        >
+          {unbindStatus === "loading" ? "PROCESSING..." : "UNBIND X ACCOUNT"}
+        </button>
+
+        {unbindMsg && (
+          <p
+            className="mono text-xs"
+            style={{ color: unbindStatus === "done" ? "#44aa44" : "#FF4444" }}
+          >
+            {unbindMsg}
+          </p>
+        )}
+      </div>
+    </div>
   );
 }

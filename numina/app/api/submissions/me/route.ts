@@ -2,9 +2,19 @@ import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/session-user";
 import { getConfig } from "@/lib/config-cache";
 import { calculateTier, nextTierFor, tierProgress } from "@/lib/tier-calc";
+import { type SybilRules } from "@/lib/validate-submission";
 import { supabase } from "@/lib/supabase";
 
 type TierConfig = { name: string; threshold: number; reward: string | null };
+
+const SYBIL_DEFAULTS: SybilRules = {
+  requireXBinding: false,
+  maxXAccountSubmissionsPerDay: 3,
+  minTweetSimilarityDistance: 0.7,
+  minAccountFollowingCount: 0,
+  minAccountTotalTweets: 0,
+  blockDefaultProfileImages: false,
+};
 
 /**
  * GET /api/submissions/me
@@ -20,13 +30,20 @@ export async function GET() {
   }
   const walletAddress = auth.address;
 
-  // 2. Fetch tiers config (needed for tier calculation)
+  // 2. Fetch tiers config and sybil rules
   const tiers = await getConfig<TierConfig[]>("tiers");
 
-  // 3. Fetch wallet row
+  let sybilRules: SybilRules;
+  try {
+    sybilRules = await getConfig<SybilRules>("sybil_rules");
+  } catch {
+    sybilRules = { ...SYBIL_DEFAULTS };
+  }
+
+  // 3. Fetch wallet row (includes X binding info)
   const { data: wallet } = await supabase
     .from("wallets")
-    .select("total_points, submission_count, banned, banned_reason")
+    .select("total_points, submission_count, banned, banned_reason, bound_x_handle")
     .eq("address", walletAddress)
     .maybeSingle();
 
@@ -40,6 +57,8 @@ export async function GET() {
       submissionCount: 0,
       banned: false,
       recent: [],
+      boundXHandle: null,
+      requireXBinding: sybilRules.requireXBinding,
     });
   }
 
@@ -74,5 +93,7 @@ export async function GET() {
     submissionCount: wallet.submission_count ?? 0,
     banned: wallet.banned ?? false,
     recent,
+    boundXHandle: (wallet as { bound_x_handle?: string | null }).bound_x_handle ?? null,
+    requireXBinding: sybilRules.requireXBinding,
   });
 }

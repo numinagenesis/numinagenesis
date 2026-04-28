@@ -3,6 +3,7 @@ import { getConfig } from "@/lib/config-cache";
 import { parseTweetUrl } from "@/lib/parse-tweet-url";
 import { fetchTweet, type TweetData } from "@/lib/fxtwitter";
 import { isThreadStarter } from "@/lib/detect-thread";
+import { normalizeTweetText, hashTweetText, normalizedDistance } from "@/lib/tweet-text";
 
 const IS_DEV = process.env.NODE_ENV !== "production";
 
@@ -31,6 +32,26 @@ type EarnRates = {
   likeBonus1000: number;
 };
 
+export type SybilRules = {
+  requireXBinding: boolean;
+  maxXAccountSubmissionsPerDay: number;
+  minTweetSimilarityDistance: number;
+  minAccountFollowingCount: number;
+  minAccountTotalTweets: number;
+  blockDefaultProfileImages: boolean;
+};
+
+// Safe defaults used when the sybil_rules config key hasn't been seeded yet.
+// requireXBinding: false so existing users aren't locked out before migration runs.
+const SYBIL_DEFAULTS: SybilRules = {
+  requireXBinding: false,
+  maxXAccountSubmissionsPerDay: 3,
+  minTweetSimilarityDistance: 0.7,
+  minAccountFollowingCount: 0,
+  minAccountTotalTweets: 0,
+  blockDefaultProfileImages: false,
+};
+
 // ── Result types ─────────────────────────────────────────────────────────────
 
 export type ValidationError = {
@@ -46,7 +67,15 @@ export type ValidationError = {
     | "tweet_too_old"
     | "too_short"
     | "no_mention"
-    | "self_mention_no_credit";
+    | "self_mention_no_credit"
+    // sybil codes
+    | "x_binding_required"
+    | "wrong_x_account"
+    | "x_account_rate_limit"
+    | "account_low_following"
+    | "account_too_quiet"
+    | "no_profile_image"
+    | "duplicate_content";
   message: string;
 };
 
@@ -58,6 +87,7 @@ export type ValidationSuccess = {
   tweetId: string;
   tweetAuthor: string;
   validatedHandle: string;
+  tweetTextHash: string;
 };
 
 export type ValidationResult = ValidationError | ValidationSuccess;
@@ -89,13 +119,9 @@ export async function validateSubmission({
   }
 
   const { tweetId } = parsed;
-  // canonicalUrl may use "_" as author placeholder for mobile /i/ URLs.
-  // It will be rebuilt from fxtwitter data after the tweet is fetched.
   let canonicalUrl = parsed.canonicalUrl;
 
   // ── Step 2: Uniqueness — tweet_id or canonical URL already submitted ─────
-  // tweet_id uniqueness is the reliable guard; canonical URL check is secondary
-  // (mobile URLs use _ as placeholder so tweet_url may not match a prior submission).
 
   const { data: existing } = await supabase
     .from("submissions")
@@ -126,11 +152,12 @@ export async function validateSubmission({
     };
   }
 
-  // ── Step 4: Wallet not banned ────────────────────────────────────────────
+  // ── Step 4: Wallet status — ban check + binding info ─────────────────────
+  // Extend select to also fetch binding data used in steps 6.5/6.6.
 
   const { data: wallet } = await supabase
     .from("wallets")
-    .select("banned")
+    .select("banned, bound_x_id, bound_x_handle")
     .eq("address", walletAddress.toLowerCase())
     .maybeSingle();
 
@@ -153,16 +180,13 @@ export async function validateSubmission({
 
   const tweet = fetched.data;
 
-  // Resolve the definitive tweet author and rebuild canonical URL.
-  // fxtwitter always returns the real screen_name — use that as the
-  // authoritative source regardless of what the submitted URL contained.
+  // Resolve the definitive tweet author from fxtwitter data
   const tweetAuthor = tweet.author.screen_name || parsed.author || "";
   if (tweetAuthor) {
     canonicalUrl = `https://x.com/${tweetAuthor}/status/${tweetId}`;
   }
 
-  // Re-check uniqueness against the now-canonical URL if it changed
-  // (e.g. mobile /i/ URL resolves to real author URL that was already submitted)
+  // Re-check canonical URL uniqueness if mobile /i/ URL resolved to real author
   if (tweetAuthor && parsed.author === null) {
     const { data: existingCanon } = await supabase
       .from("submissions")
@@ -174,9 +198,8 @@ export async function validateSubmission({
     }
   }
 
-  // ── Step 6: Rule validation ──────────────────────────────────────────────
+  // ── Step 6: Core rule validation ─────────────────────────────────────────
 
-  // Account age
   const accountAgeDays = daysBetween(tweet.author.account_created_at, now);
   if (accountAgeDays < rules.minAccountAgeDays) {
     return {
@@ -186,7 +209,6 @@ export async function validateSubmission({
     };
   }
 
-  // Follower count
   if (tweet.author.followers < rules.minFollowers) {
     return {
       ok: false,
@@ -195,7 +217,6 @@ export async function validateSubmission({
     };
   }
 
-  // Tweet age
   const tweetAgeDays = daysBetween(tweet.created_at, now);
   if (tweetAgeDays > rules.maxTweetAgeDays) {
     return {
@@ -205,7 +226,6 @@ export async function validateSubmission({
     };
   }
 
-  // Character count
   if (tweet.text.length < rules.minCharacters) {
     return {
       ok: false,
@@ -214,11 +234,147 @@ export async function validateSubmission({
     };
   }
 
-  // Mention check
+  // ── Load sybil rules (safe defaults if config key not yet seeded) ─────────
+
+  let sybilRules: SybilRules;
+  try {
+    sybilRules = await getConfig<SybilRules>("sybil_rules");
+  } catch {
+    sybilRules = { ...SYBIL_DEFAULTS };
+  }
+
+  // ── Step 6.5: X binding required ─────────────────────────────────────────
+
+  if (sybilRules.requireXBinding) {
+    const boundXId = (wallet as { bound_x_id?: string | null } | null)?.bound_x_id ?? null;
+    if (!boundXId) {
+      return {
+        ok: false,
+        code: "x_binding_required",
+        message: "Bind your X account first to submit tweets",
+      };
+    }
+  }
+
+  // ── Step 6.6: Tweet author must match bound X account ────────────────────
+
+  const boundXId = (wallet as { bound_x_id?: string | null } | null)?.bound_x_id ?? null;
+  const boundXHandle = (wallet as { bound_x_handle?: string | null } | null)?.bound_x_handle ?? null;
+
+  if (boundXId) {
+    const tweetAuthorId = tweet.author.id;
+    if (!tweetAuthorId || tweetAuthorId !== boundXId) {
+      return {
+        ok: false,
+        code: "wrong_x_account",
+        message: boundXHandle
+          ? `Tweet must come from your bound X account @${boundXHandle}`
+          : "Tweet must come from your bound X account",
+      };
+    }
+  }
+
+  // ── Step 6.7: X account daily rate limit ─────────────────────────────────
+
+  if (boundXId && sybilRules.maxXAccountSubmissionsPerDay > 0) {
+    const { count: xTodayCount } = await supabase
+      .from("submissions")
+      .select("id", { count: "exact", head: true })
+      .eq("x_account_id", boundXId)
+      .gte("created_at", oneDayAgo);
+
+    if ((xTodayCount ?? 0) >= sybilRules.maxXAccountSubmissionsPerDay) {
+      return {
+        ok: false,
+        code: "x_account_rate_limit",
+        message: `Daily limit reached for this X account (${sybilRules.maxXAccountSubmissionsPerDay} per day)`,
+      };
+    }
+  }
+
+  // ── Step 6.8: Account quality checks ─────────────────────────────────────
+
+  if (sybilRules.minAccountFollowingCount > 0 &&
+      tweet.author.following < sybilRules.minAccountFollowingCount) {
+    return {
+      ok: false,
+      code: "account_low_following",
+      message: `X account must follow at least ${sybilRules.minAccountFollowingCount} accounts`,
+    };
+  }
+
+  if (sybilRules.minAccountTotalTweets > 0 &&
+      tweet.author.statuses_count < sybilRules.minAccountTotalTweets) {
+    return {
+      ok: false,
+      code: "account_too_quiet",
+      message: `X account must have at least ${sybilRules.minAccountTotalTweets} tweets`,
+    };
+  }
+
+  if (sybilRules.blockDefaultProfileImages) {
+    const avatar = tweet.author.avatar_url;
+    const isDefault =
+      !avatar ||
+      avatar.includes("default_profile") ||
+      avatar.includes("default_profile_images");
+    if (isDefault) {
+      return {
+        ok: false,
+        code: "no_profile_image",
+        message: "X account must have a custom profile image",
+      };
+    }
+  }
+
+  // ── Step 6.9: Tweet content similarity ───────────────────────────────────
+
+  const normalizedText = normalizeTweetText(tweet.text);
+  const tweetTextHash = hashTweetText(tweet.text);
+
+  if (normalizedText.length > 0) {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: recentSubs } = await supabase
+      .from("submissions")
+      .select("tweet_text_hash, raw_data")
+      .eq("wallet_address", walletAddress.toLowerCase())
+      .gte("created_at", thirtyDaysAgo)
+      .limit(50);
+
+    for (const sub of recentSubs ?? []) {
+      // Fast path: exact hash match → identical content
+      if (sub.tweet_text_hash && sub.tweet_text_hash === tweetTextHash) {
+        return {
+          ok: false,
+          code: "duplicate_content",
+          message: "Tweet is too similar to a previous submission",
+        };
+      }
+
+      // Slow path: Levenshtein similarity check
+      const priorText = normalizeTweetText(
+        (sub.raw_data as { text?: string } | null)?.text ?? ""
+      );
+      if (priorText.length > 0) {
+        const dist = normalizedDistance(normalizedText, priorText);
+        if (dist < sybilRules.minTweetSimilarityDistance) {
+          return {
+            ok: false,
+            code: "duplicate_content",
+            message: "Tweet is too similar to a previous submission",
+          };
+        }
+      }
+    }
+  }
+
+  // ── Step 7: Mention check ─────────────────────────────────────────────────
+
   const xHandle = await getConfig<XHandle>("x_handle");
   const requiredHandle = xHandle.handle.toLowerCase().trim();
 
-  // Self-mention guard: reject if the tweet was posted FROM the configured handle itself
+  // Self-mention guard
   const posterHandle = tweet.author.screen_name.toLowerCase().trim();
   if (posterHandle === requiredHandle) {
     return {
@@ -228,7 +384,6 @@ export async function validateSubmission({
     };
   }
 
-  // Verify the tweet mentions the required handle
   const mentionedHandles = tweet.mentioned_handles.map((h) => h.toLowerCase().trim());
 
   if (IS_DEV) {
@@ -247,30 +402,21 @@ export async function validateSubmission({
     };
   }
 
-  // ── Step 7: Calculate points ─────────────────────────────────────────────
+  // ── Step 8: Calculate points ─────────────────────────────────────────────
 
   const earnRates = await getConfig<EarnRates>("earn_rates");
 
   let points = earnRates.basicTweet;
-
-  if (tweet.has_media) {
-    points = Math.max(points, earnRates.tweetWithMedia);
-  }
-  if (tweet.is_quote) {
-    points = Math.max(points, earnRates.quoteTweet);
-  }
-  if (tweet.is_reply) {
-    points = Math.max(points, earnRates.reply);
-  }
+  if (tweet.has_media) points = Math.max(points, earnRates.tweetWithMedia);
+  if (tweet.is_quote)  points = Math.max(points, earnRates.quoteTweet);
+  if (tweet.is_reply)  points = Math.max(points, earnRates.reply);
 
   const thread = await isThreadStarter(tweet);
-  if (thread) {
-    points = Math.max(points, earnRates.thread3Plus);
-  }
+  if (thread) points = Math.max(points, earnRates.thread3Plus);
 
   // likeBonus100 / likeBonus1000 skipped for v1 per spec
 
-  // ── Step 8: Return success ───────────────────────────────────────────────
+  // ── Step 9: Return success ────────────────────────────────────────────────
 
   return {
     ok: true,
@@ -280,5 +426,6 @@ export async function validateSubmission({
     tweetId,
     tweetAuthor,
     validatedHandle: xHandle.handle,
+    tweetTextHash,
   };
 }
