@@ -14,16 +14,23 @@ type TierConfig = { name: string; threshold: number; reward: string | null };
  *
  * Validates and records a tweet submission.
  * Requires an active SIWE session.
+ *
+ * DB operation order (matters — FK constraint: submissions.wallet_address → wallets.address):
+ *   1. UPSERT wallet row  ← must happen first so the row exists
+ *   2. INSERT submission  ← safe because wallet is guaranteed present
+ *   3. UPDATE wallet totals (increment points + counts)
  */
 export async function POST(req: NextRequest) {
-  // 1. Auth
+  // ── Auth ──────────────────────────────────────────────────────────────────
+
   const auth = await requireUser();
   if (!auth.ok) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
   const walletAddress = auth.address; // already lowercase
 
-  // 2. Campaign must be active
+  // ── Campaign gate ─────────────────────────────────────────────────────────
+
   const campaign = await getConfig<CampaignState>("campaign_state");
   if (!campaign.active) {
     return NextResponse.json(
@@ -32,7 +39,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 3. Parse request body
+  // ── Parse body ────────────────────────────────────────────────────────────
+
   let tweetUrl: string;
   try {
     const body = await req.json();
@@ -45,7 +53,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 4. Full validation pipeline
+  // ── Validation pipeline ───────────────────────────────────────────────────
+
   const result = await validateSubmission({ tweetUrl, walletAddress });
   if (!result.ok) {
     return NextResponse.json(
@@ -57,19 +66,36 @@ export async function POST(req: NextRequest) {
   const { points, tweetData, canonicalUrl, tweetId, tweetAuthor } = result;
   const now = new Date().toISOString();
 
-  // 5a. Ensure wallet row exists; get current totals
-  const { data: existingWallet } = await supabaseAdmin
+  // ── STEP 1: Upsert wallet row ─────────────────────────────────────────────
+  //
+  // This MUST happen before the submission INSERT.
+  // submissions.wallet_address has a FK constraint to wallets.address.
+  // A new user has no wallet row yet — inserting a submission first triggers
+  // Postgres error 23503 (foreign key violation).
+  //
+  // We upsert with only the non-aggregate fields:
+  //   - New wallet   → row created; total_points/submission_count use DB DEFAULTs (0)
+  //   - Existing     → last_active_at refreshed; totals untouched until step 3
+
+  const { error: walletEnsureError } = await supabaseAdmin
     .from("wallets")
-    .select("total_points, submission_count")
-    .eq("address", walletAddress)
-    .maybeSingle();
+    .upsert(
+      { address: walletAddress, last_active_at: now },
+      { onConflict: "address", ignoreDuplicates: false }
+    );
 
-  const currentPoints = existingWallet?.total_points ?? 0;
-  const currentCount = existingWallet?.submission_count ?? 0;
-  const newTotal = currentPoints + points;
-  const newCount = currentCount + 1;
+  if (walletEnsureError) {
+    console.error("[submissions/create] wallet upsert error", walletEnsureError);
+    return NextResponse.json(
+      { code: "db_error", message: "Failed to prepare wallet record" },
+      { status: 500 }
+    );
+  }
 
-  // 5b. INSERT submission row
+  // ── STEP 2: Insert submission ─────────────────────────────────────────────
+  //
+  // Wallet row is guaranteed to exist now.
+
   const { error: insertError } = await supabaseAdmin
     .from("submissions")
     .insert({
@@ -84,42 +110,60 @@ export async function POST(req: NextRequest) {
     });
 
   if (insertError) {
-    // Unique constraint on tweet_id → already submitted (rare race condition)
+    // 23505 = unique constraint — duplicate tweet_id (race condition)
     if (insertError.code === "23505") {
       return NextResponse.json(
         { code: "duplicate", message: "Already submitted" },
         { status: 400 }
       );
     }
-    console.error("[submissions/create] insert error", insertError);
+    console.error("[submissions/create] submission insert error", insertError);
     return NextResponse.json(
       { code: "db_error", message: "Failed to record submission" },
       { status: 500 }
     );
   }
 
-  // 5c. UPSERT wallet row (insert if new, update totals if existing)
-  if (!existingWallet) {
-    await supabaseAdmin.from("wallets").insert({
-      address: walletAddress,
-      total_points: newTotal,
-      submission_count: newCount,
-      banned: false,
-      first_seen_at: now,
-      last_active_at: now,
-    });
-  } else {
-    await supabaseAdmin
-      .from("wallets")
-      .update({
-        total_points: newTotal,
-        submission_count: newCount,
-        last_active_at: now,
-      })
-      .eq("address", walletAddress);
+  // ── STEP 3: Increment wallet totals ───────────────────────────────────────
+  //
+  // Fetch the current row (just inserted or pre-existing) then write back
+  // the incremented values. Also set first_seen_at if this is a brand-new wallet.
+
+  const { data: walletRow, error: walletReadError } = await supabaseAdmin
+    .from("wallets")
+    .select("total_points, submission_count, first_seen_at")
+    .eq("address", walletAddress)
+    .single();
+
+  if (walletReadError) {
+    // Submission is already recorded — don't fail the request, just log.
+    console.error("[submissions/create] wallet read error (points not incremented)", walletReadError);
   }
 
-  // 6. Calculate resulting tier
+  const newTotal = (walletRow?.total_points ?? 0) + points;
+  const newCount = (walletRow?.submission_count ?? 0) + 1;
+
+  // first_seen_at: set only if not already populated (new wallet case)
+  const firstSeenUpdate = walletRow?.first_seen_at ? {} : { first_seen_at: now };
+
+  const { error: walletUpdateError } = await supabaseAdmin
+    .from("wallets")
+    .update({
+      total_points: newTotal,
+      submission_count: newCount,
+      last_active_at: now,
+      ...firstSeenUpdate,
+    })
+    .eq("address", walletAddress);
+
+  if (walletUpdateError) {
+    // Submission is recorded; points update failed. Log but don't 500 — user gets
+    // their submission counted, points will be off but can be reconciled later.
+    console.error("[submissions/create] wallet points update error", walletUpdateError);
+  }
+
+  // ── Respond ───────────────────────────────────────────────────────────────
+
   const tiers = await getConfig<TierConfig[]>("tiers");
   const tier = calculateTier(newTotal, tiers);
 
