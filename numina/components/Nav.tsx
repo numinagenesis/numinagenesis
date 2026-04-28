@@ -4,11 +4,12 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 
 const LINKS = [
-  { href: "/",       label: "HOME"   },
-  { href: "/summon", label: "SUMMON" },
-  { href: "/docs",   label: "DOCS"   },
-  { href: "/mint",   label: "MINT"   },
-  { href: "/points", label: "POINTS" },
+  { href: "/",            label: "HOME"        },
+  { href: "/summon",      label: "SUMMON"      },
+  { href: "/docs",        label: "DOCS"        },
+  { href: "/mint",        label: "MINT"        },
+  { href: "/points",      label: "POINTS"      },
+  { href: "/leaderboard", label: "LEADERBOARD" },
 ];
 
 export default function Nav() {

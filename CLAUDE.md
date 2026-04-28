@@ -44,6 +44,8 @@ numina/
     points/
       page.tsx             → /points    campaign page (server component, reads campaign_state)
       client.tsx           → PointsClient — session-aware UI (bind + submit + standing)
+    leaderboard/
+      page.tsx             → /leaderboard  public top-100 table (server component, no auth)
     verify/
       page.tsx             → /verify    task hash verification (Phase 2, partial)
     divisions/
@@ -485,7 +487,7 @@ total tweet count; `avatar_url` vs `profile_image_url` for avatar; `joined` vs
 ## Nav links (public, in order)
 
 ```
-HOME / SUMMON / DOCS / MINT / POINTS
+HOME / SUMMON / DOCS / MINT / POINTS / LEADERBOARD
 ```
 
 `/admin` is intentionally NOT in nav — hidden route, wallet-gated.
@@ -501,6 +503,7 @@ HOME / SUMMON / DOCS / MINT / POINTS
 /docs           NUMINA info page
 /mint           coming-soon
 /points         campaign (STANDBY or live based on config)
+/leaderboard    public top-100 wallets by points (no auth, server component)
 /admin          config panel (hidden, wallet-gated)
 /divisions      lore
 /lore           lore
@@ -533,7 +536,6 @@ POST /api/factory-submit
 
 **PLANNED — not yet built:**
 ```
-/leaderboard    Stage 4 — public top 100 by total_points
 /admin/queue    Stage 5 — moderation queue for pending submissions
 ```
 
@@ -583,12 +585,12 @@ Stage 1   ✅  Foundation — Supabase, SIWE, wallet connect, /points STANDBY
 Stage 2   ✅  Admin UI — wallet-gated /admin, 5 live config cards
 Stage 3   ✅  Submission engine — fxtwitter validation, points, dashboard
 Stage 3.5 ✅  Anti-sybil — X binding, quality checks, content similarity
-Stage 4   ⏳  Leaderboard (public top 100 by total_points)
+Stage 4   ✅  Leaderboard — public /leaderboard, stats grid, tier breakdown, top-100 table
 Stage 5   ⏳  Moderation queue (/admin/queue for pending submissions)
 ```
 
 All stages targeting a single production launch (not shipped yet).
-Last successful build: `npm run build` exits 0, 27 routes, no type errors.
+Last successful build: `npm run build` exits 0, 28 routes, no type errors.
 
 ---
 
