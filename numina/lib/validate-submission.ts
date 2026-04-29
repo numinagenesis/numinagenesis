@@ -145,11 +145,26 @@ export async function validateSubmission({
     .gte("created_at", oneDayAgo);
 
   if ((todayCount ?? 0) >= rules.maxSubmissionsPerDay) {
-    return {
-      ok: false,
-      code: "rate_limit",
-      message: `Daily submission limit reached (${rules.maxSubmissionsPerDay} per day)`,
-    };
+    // Find the oldest submission in the rolling 24h window so we can tell
+    // the user exactly when their next slot opens.
+    const { data: oldestRecent } = await supabase
+      .from("submissions")
+      .select("created_at")
+      .eq("wallet_address", walletAddress.toLowerCase())
+      .gte("created_at", oneDayAgo)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    let message = `Daily limit reached (${rules.maxSubmissionsPerDay} per day)`;
+    if (oldestRecent?.created_at) {
+      const unblockedAt =
+        new Date(oldestRecent.created_at).getTime() + 24 * 60 * 60 * 1000;
+      const hoursUntil = Math.ceil((unblockedAt - Date.now()) / (1000 * 60 * 60));
+      message = `Daily limit reached. Next slot opens in ~${hoursUntil}h`;
+    }
+
+    return { ok: false, code: "rate_limit", message };
   }
 
   // ── Step 4: Wallet status — ban check + binding info ─────────────────────
