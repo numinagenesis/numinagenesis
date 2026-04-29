@@ -314,6 +314,7 @@ function SubmitCard({
   const [url, setUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [successPending, setSuccessPending] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -332,7 +333,12 @@ function SubmitCard({
       const data = await res.json();
 
       if (res.ok && data.ok) {
-        setSuccessMsg(`+${data.pointsAwarded} POINTS AWARDED`);
+        const isPending = data.status === "pending";
+        const msg = isPending
+          ? "SUBMITTED — pending review"
+          : `+${data.pointsAwarded} POINTS AWARDED`;
+        setSuccessMsg(msg);
+        setSuccessPending(isPending);
         setUrl("");
         inputRef.current?.focus();
         onSuccess();
@@ -370,6 +376,7 @@ function SubmitCard({
           onChange={(e) => {
             setUrl(e.target.value);
             setSuccessMsg(null);
+            setSuccessPending(false);
             setErrorMsg(null);
           }}
           onKeyDown={handleKeyDown}
@@ -397,7 +404,10 @@ function SubmitCard({
         </button>
 
         {successMsg && (
-          <p className="pixel text-[7px]" style={{ color: "#44aa44" }}>
+          <p
+            className="pixel text-[7px]"
+            style={{ color: successPending ? "#aaaa44" : "#44aa44" }}
+          >
             {successMsg}
           </p>
         )}

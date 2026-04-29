@@ -34,7 +34,10 @@ numina/
     globals.css            → global styles
     admin/
       page.tsx             → /admin     wallet-gated config panel (NOT in nav)
-      cards.tsx            → 7 config cards (see Admin cards section below)
+      cards.tsx            → 8 config cards (see Admin cards section below)
+      queue/
+        page.tsx           → /admin/queue  moderation queue (server component, admin-gated)
+        client.tsx         → QueueClient  — interactive approve/reject card list
     summon/
       page.tsx             → /summon    agent preview flow (no chain writes)
     docs/
@@ -118,7 +121,8 @@ Seven cards rendered in `StateC` of `/admin`:
 | 4 | `RulesCard` | `rules` | Account age, followers, char limits |
 | 5 | `TiersCard` | `tiers` | Tier thresholds + rewards |
 | 6 | `SybilRulesCard` | `sybil_rules` | X binding toggle + quality thresholds |
-| 7 | `WalletToolsCard` | — | Admin unbind-X-account tool (no config key) |
+| 7 | `ModerationCard` | `moderation` | Tier threshold + keyword triggers for pending queue |
+| 8 | `WalletToolsCard` | — | Admin unbind-X-account tool (no config key) |
 
 ---
 
@@ -267,9 +271,10 @@ VALUES (
 | `rules` | `{ minAccountAgeDays, minFollowers, minCharacters, maxTweetAgeDays, maxSubmissionsPerDay }` | per-submission anti-abuse |
 | `tiers` | `Array<{ name, threshold, reward }>` sorted ascending by threshold | tier system |
 | `sybil_rules` | `{ requireXBinding, maxXAccountSubmissionsPerDay, minTweetSimilarityDistance, minAccountFollowingCount, minAccountTotalTweets, blockDefaultProfileImages }` | sybil resistance (Stage 3.5) |
+| `moderation` | `{ manualReviewAboveTier: string\|null, manualReviewKeywords: string[] }` | pending queue triggers (Stage 5) |
 
 Config is read server-side via `getConfig<T>(key)` in `lib/config-cache.ts` (30s
-in-memory TTL). Admin writes go through `PATCH /api/admin/config`. All six keys
+in-memory TTL). Admin writes go through `PATCH /api/admin/config`. All seven keys
 are in `ALLOWED_KEYS` in that route. `sybil_rules` has safe in-code defaults
 (`SYBIL_DEFAULTS`) so missing config row never crashes validation.
 
@@ -505,6 +510,7 @@ HOME / SUMMON / DOCS / MINT / POINTS / LEADERBOARD
 /points         campaign (STANDBY or live based on config)
 /leaderboard    public top-100 wallets by points (no auth, server component)
 /admin          config panel (hidden, wallet-gated)
+/admin/queue    moderation queue (hidden, admin-gated, shows pending submissions)
 /divisions      lore
 /lore           lore
 /factory        agent factory
@@ -529,14 +535,12 @@ GET  /api/submissions/me
 POST /api/x-binding/challenge
 POST /api/x-binding/verify       body: { tweetUrl }
 
+GET  /api/admin/queue            — pending submissions list + count (admin only)
+POST /api/admin/moderate         body: { id, action: "approve"|"reject", reason? }
+
 POST /api/summon-task
 GET  /api/factory-submissions
 POST /api/factory-submit
-```
-
-**PLANNED — not yet built:**
-```
-/admin/queue    Stage 5 — moderation queue for pending submissions
 ```
 
 ---
@@ -586,11 +590,12 @@ Stage 2   ✅  Admin UI — wallet-gated /admin, 5 live config cards
 Stage 3   ✅  Submission engine — fxtwitter validation, points, dashboard
 Stage 3.5 ✅  Anti-sybil — X binding, quality checks, content similarity
 Stage 4   ✅  Leaderboard — public /leaderboard, stats grid, tier breakdown, top-100 table
-Stage 5   ⏳  Moderation queue (/admin/queue for pending submissions)
+Stage 5   ✅  Moderation queue — /admin/queue, approve/reject, pending hold on points
 ```
 
 All stages targeting a single production launch (not shipped yet).
-Last successful build: `npm run build` exits 0, 28 routes, no type errors.
+Phase 1 v1 feature-complete — ready for pre-launch review.
+Last successful build: `npm run build` exits 0, 30 routes, no type errors.
 
 ---
 

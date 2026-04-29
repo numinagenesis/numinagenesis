@@ -2,11 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/session-user";
 import { getConfig } from "@/lib/config-cache";
 import { validateSubmission } from "@/lib/validate-submission";
-import { calculateTier } from "@/lib/tier-calc";
+import { calculateTier, type TierConfig } from "@/lib/tier-calc";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 type CampaignState = { active: boolean; message: string };
-type TierConfig = { name: string; threshold: number; reward: string | null };
+
+type ModerationConfig = {
+  manualReviewAboveTier: string | null;
+  manualReviewKeywords: string[];
+};
+
+const MOD_DEFAULTS: ModerationConfig = {
+  manualReviewAboveTier: null,
+  manualReviewKeywords: [],
+};
 
 /**
  * POST /api/submissions/create
@@ -15,10 +24,13 @@ type TierConfig = { name: string; threshold: number; reward: string | null };
  * Validates and records a tweet submission.
  * Requires an active SIWE session.
  *
- * DB operation order (matters — FK constraint: submissions.wallet_address → wallets.address):
- *   1. UPSERT wallet row  ← must happen first so the row exists
- *   2. INSERT submission  ← safe because wallet is guaranteed present
- *   3. UPDATE wallet totals (increment points + counts)
+ * DB operation order (FK constraint: submissions.wallet_address → wallets.address):
+ *   1. UPSERT wallet row           ← must happen first (FK guarantee)
+ *   2. READ wallet current state   ← needed for moderation tier check
+ *   3. Determine submission status ← "approved" or "pending" per moderation config
+ *   4. INSERT submission           ← with computed status
+ *   5. UPDATE wallet totals        ← points only if approved; count always
+ *   6. UPSERT x_account_activity   ← non-critical tracking
  */
 export async function POST(req: NextRequest) {
   // ── Auth ──────────────────────────────────────────────────────────────────
@@ -69,14 +81,9 @@ export async function POST(req: NextRequest) {
 
   // ── STEP 1: Upsert wallet row ─────────────────────────────────────────────
   //
-  // This MUST happen before the submission INSERT.
-  // submissions.wallet_address has a FK constraint to wallets.address.
-  // A new user has no wallet row yet — inserting a submission first triggers
-  // Postgres error 23503 (foreign key violation).
-  //
-  // We upsert with only the non-aggregate fields:
-  //   - New wallet   → row created; total_points/submission_count use DB DEFAULTs (0)
-  //   - Existing     → last_active_at refreshed; totals untouched until step 3
+  // Must happen before the submission INSERT (FK constraint on wallet_address).
+  // New wallet → row created with DB DEFAULTs (total_points=0, submission_count=0).
+  // Existing wallet → last_active_at refreshed; totals untouched.
 
   const { error: walletEnsureError } = await supabaseAdmin
     .from("wallets")
@@ -93,9 +100,69 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── STEP 2: Insert submission ─────────────────────────────────────────────
+  // ── STEP 2: Read wallet current state ─────────────────────────────────────
   //
-  // Wallet row is guaranteed to exist now.
+  // Needed before the insert so the moderation tier check sees the wallet's
+  // points *before* this submission is counted.
+
+  const { data: walletRow, error: walletReadError } = await supabaseAdmin
+    .from("wallets")
+    .select("total_points, submission_count, first_seen_at")
+    .eq("address", walletAddress)
+    .single();
+
+  if (walletReadError) {
+    console.error("[submissions/create] wallet read error (tier check disabled)", walletReadError);
+    // Proceed — tier check will be skipped, defaults to auto-approve
+  }
+
+  // ── STEP 3: Determine submission status ───────────────────────────────────
+  //
+  // Default: "approved". Moderation config can flip to "pending" based on:
+  //   a) Keyword match in tweet text (case-insensitive)
+  //   b) Wallet's current tier at or above manualReviewAboveTier threshold
+
+  let subStatus: "approved" | "pending" = "approved";
+
+  // Load moderation config + tiers in parallel (both cached)
+  let modConfig: ModerationConfig;
+  let tiers: TierConfig[];
+
+  try {
+    [modConfig, tiers] = await Promise.all([
+      getConfig<ModerationConfig>("moderation").catch(() => ({ ...MOD_DEFAULTS })),
+      getConfig<TierConfig[]>("tiers").catch(() => []),
+    ]);
+  } catch {
+    modConfig = { ...MOD_DEFAULTS };
+    tiers = [];
+  }
+
+  // a) Keyword check
+  if (modConfig.manualReviewKeywords.length > 0) {
+    const textLower = tweetData.text.toLowerCase();
+    const hit = modConfig.manualReviewKeywords.some(
+      (kw) => kw && textLower.includes(kw.toLowerCase())
+    );
+    if (hit) subStatus = "pending";
+  }
+
+  // b) Tier threshold check (only if still auto-approved and tier is configured)
+  if (subStatus === "approved" && modConfig.manualReviewAboveTier && !walletReadError) {
+    const currentPoints = walletRow?.total_points ?? 0;
+    const currentTier = calculateTier(currentPoints, tiers);
+    if (currentTier) {
+      const thresholdTier = tiers.find(
+        (t) => t.name.toUpperCase() === modConfig.manualReviewAboveTier!.toUpperCase()
+      );
+      // Wallet is at or above the threshold tier → flag for review
+      if (thresholdTier && currentTier.threshold >= thresholdTier.threshold) {
+        subStatus = "pending";
+      }
+    }
+  }
+
+  // ── STEP 4: Insert submission ─────────────────────────────────────────────
 
   const { error: insertError } = await supabaseAdmin
     .from("submissions")
@@ -106,10 +173,11 @@ export async function POST(req: NextRequest) {
       tweet_author: tweetAuthor,
       x_account_id: xAccountId,
       tweet_text_hash: tweetTextHash,
-      status: "approved",
+      status: subStatus,
       points_awarded: points,
       raw_data: tweetData,
-      verified_at: now,
+      // verified_at only set on auto-approve; stays null until admin approves pending
+      verified_at: subStatus === "approved" ? now : null,
     });
 
   if (insertError) {
@@ -127,48 +195,36 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── STEP 3: Increment wallet totals ───────────────────────────────────────
+  // ── STEP 5: Update wallet totals ──────────────────────────────────────────
   //
-  // Fetch the current row (just inserted or pre-existing) then write back
-  // the incremented values. Also set first_seen_at if this is a brand-new wallet.
+  // Points: only awarded on auto-approve. Pending submissions hold points
+  //         until admin approval (see /api/admin/moderate).
+  // Count:  always incremented — it tracks total submissions made.
+  // first_seen_at: set only for brand-new wallets.
 
-  const { data: walletRow, error: walletReadError } = await supabaseAdmin
-    .from("wallets")
-    .select("total_points, submission_count, first_seen_at")
-    .eq("address", walletAddress)
-    .single();
-
-  if (walletReadError) {
-    // Submission is already recorded — don't fail the request, just log.
-    console.error("[submissions/create] wallet read error (points not incremented)", walletReadError);
-  }
-
-  const newTotal = (walletRow?.total_points ?? 0) + points;
-  const newCount = (walletRow?.submission_count ?? 0) + 1;
-
-  // first_seen_at: set only if not already populated (new wallet case)
+  const pointsToAward = subStatus === "approved" ? points : 0;
+  const newTotal      = (walletRow?.total_points    ?? 0) + pointsToAward;
+  const newCount      = (walletRow?.submission_count ?? 0) + 1;
   const firstSeenUpdate = walletRow?.first_seen_at ? {} : { first_seen_at: now };
 
   const { error: walletUpdateError } = await supabaseAdmin
     .from("wallets")
     .update({
-      total_points: newTotal,
+      total_points:     newTotal,
       submission_count: newCount,
-      last_active_at: now,
+      last_active_at:   now,
       ...firstSeenUpdate,
     })
     .eq("address", walletAddress);
 
   if (walletUpdateError) {
-    // Submission is recorded; points update failed. Log but don't 500 — user gets
-    // their submission counted, points will be off but can be reconciled later.
-    console.error("[submissions/create] wallet points update error", walletUpdateError);
+    // Submission recorded; points may be off — log and continue.
+    console.error("[submissions/create] wallet update error", walletUpdateError);
   }
 
-  // ── STEP 4: Upsert x_account_activity ────────────────────────────────────
+  // ── STEP 6: Upsert x_account_activity ────────────────────────────────────
   //
-  // Tracks per-X-account submission activity for admin visibility.
-  // Non-critical — failure is logged and ignored.
+  // Non-critical tracking — failure is logged and ignored.
 
   if (xAccountId) {
     const { data: actRow } = await supabaseAdmin
@@ -198,12 +254,12 @@ export async function POST(req: NextRequest) {
 
   // ── Respond ───────────────────────────────────────────────────────────────
 
-  const tiers = await getConfig<TierConfig[]>("tiers");
   const tier = calculateTier(newTotal, tiers);
 
   return NextResponse.json({
     ok: true,
-    pointsAwarded: points,
+    status: subStatus,
+    pointsAwarded: pointsToAward,
     newTotal,
     tier,
   });

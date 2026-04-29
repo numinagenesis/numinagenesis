@@ -14,6 +14,7 @@ import {
   TiersCard,
   SybilRulesCard,
   WalletToolsCard,
+  ModerationCard,
   type FullConfig,
 } from "./cards";
 
@@ -87,11 +88,13 @@ function StateC({
   config,
   loading,
   address,
+  pendingCount,
   onSignOut,
 }: {
   config: FullConfig | null;
   loading: boolean;
   address: string;
+  pendingCount: number;
   onSignOut: () => void;
 }) {
   const { disconnect } = useDisconnect();
@@ -122,6 +125,20 @@ function StateC({
         </div>
       </div>
 
+      {/* Queue link */}
+      <div className="mb-8">
+        <a
+          href="/admin/queue"
+          className="pixel text-[7px]"
+          style={{
+            color: pendingCount > 0 ? "#aaaa44" : "#444444",
+            textDecoration: "none",
+          }}
+        >
+          → MODERATION QUEUE{pendingCount > 0 ? ` (${pendingCount})` : ""}
+        </a>
+      </div>
+
       <div className="flex items-center gap-4 mb-10">
         <hr className="chain-border flex-1" />
         <span className="pixel text-[7px] text-dim">CAMPAIGN CONFIG</span>
@@ -139,6 +156,7 @@ function StateC({
           <RulesCard          initial={config.rules} />
           <TiersCard          initial={config.tiers} />
           <SybilRulesCard     initial={config.sybil_rules} />
+          <ModerationCard     initial={config.moderation} />
           <WalletToolsCard />
         </div>
       )}
@@ -152,6 +170,19 @@ export default function AdminPage() {
   const [whoami, setWhoami] = useState<Whoami | null>(null); // null = checking
   const [config, setConfig] = useState<FullConfig | null>(null);
   const [configLoading, setConfigLoading] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  const fetchPendingCount = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/queue");
+      if (res.ok) {
+        const data = await res.json();
+        setPendingCount(data.count ?? 0);
+      }
+    } catch {
+      // non-critical — leave at 0
+    }
+  }, []);
 
   const fetchConfig = useCallback(async () => {
     setConfigLoading(true);
@@ -170,11 +201,12 @@ export default function AdminPage() {
       setWhoami(data);
       if (data.isAdmin) {
         fetchConfig();
+        fetchPendingCount();
       }
     } catch {
       setWhoami({ isAdmin: false, address: null });
     }
-  }, [fetchConfig]);
+  }, [fetchConfig, fetchPendingCount]);
 
   useEffect(() => {
     checkWhoami();
@@ -214,6 +246,7 @@ export default function AdminPage() {
       config={config}
       loading={configLoading}
       address={whoami.address}
+      pendingCount={pendingCount}
       onSignOut={handleSignOut}
     />
   );

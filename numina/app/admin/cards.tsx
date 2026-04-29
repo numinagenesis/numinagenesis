@@ -33,6 +33,11 @@ export type SybilRules = {
   blockDefaultProfileImages: boolean;
 };
 
+export type ModerationConfig = {
+  manualReviewAboveTier: string | null;
+  manualReviewKeywords: string[];
+};
+
 export type FullConfig = {
   campaign_state: CampaignState;
   x_handle: XHandle;
@@ -40,6 +45,7 @@ export type FullConfig = {
   rules: Rules;
   tiers: Tier[];
   sybil_rules?: SybilRules;
+  moderation?: ModerationConfig;
 };
 
 // ── Save hook ─────────────────────────────────────────────────────────────────
@@ -690,5 +696,74 @@ export function WalletToolsCard() {
         )}
       </div>
     </div>
+  );
+}
+
+// ── Card 8: Moderation ────────────────────────────────────────────────────────
+
+const MOD_DEFAULTS: ModerationConfig = {
+  manualReviewAboveTier: null,
+  manualReviewKeywords: [],
+};
+
+const TIER_OPTIONS = ["BRONZE", "SILVER", "GOLD", "DIAMOND"] as const;
+
+export function ModerationCard({ initial }: { initial?: ModerationConfig }) {
+  const [mc, setMc] = useState<ModerationConfig>(initial ?? { ...MOD_DEFAULTS });
+  // Keywords stored as newline-separated text for easy editing
+  const [kwText, setKwText] = useState(
+    (initial?.manualReviewKeywords ?? []).join("\n")
+  );
+  const { status, error, save } = useSave();
+
+  function handleSave() {
+    const keywords = kwText
+      .split("\n")
+      .map((k) => k.trim().toLowerCase())
+      .filter(Boolean);
+    save("moderation", { ...mc, manualReviewKeywords: keywords });
+  }
+
+  return (
+    <AdminCard
+      title="// MODERATION"
+      saveLabel="UPDATE MODERATION"
+      saveStatus={status}
+      saveError={error}
+      onSave={handleSave}
+      helper="null = all submissions auto-approve (default). Keywords are case-insensitive."
+    >
+      {/* Manual review tier threshold */}
+      <Field label="Manual Review Above Tier">
+        <select
+          value={mc.manualReviewAboveTier ?? ""}
+          onChange={(e) =>
+            setMc((prev) => ({
+              ...prev,
+              manualReviewAboveTier: e.target.value || null,
+            }))
+          }
+          style={{ ...INPUT, cursor: "pointer" }}
+        >
+          <option value="">Disabled — auto-approve all</option>
+          {TIER_OPTIONS.map((t) => (
+            <option key={t} value={t}>
+              {t} and above → pending review
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      {/* Keyword list */}
+      <Field label="Manual Review Keywords (one per line, case-insensitive)">
+        <textarea
+          value={kwText}
+          onChange={(e) => setKwText(e.target.value)}
+          rows={4}
+          placeholder={"airdrop\nfree mint\nwen"}
+          style={{ ...INPUT, resize: "vertical" }}
+        />
+      </Field>
+    </AdminCard>
   );
 }
