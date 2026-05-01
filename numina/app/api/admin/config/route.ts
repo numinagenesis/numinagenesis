@@ -10,6 +10,7 @@ const ALLOWED_KEYS = [
   "rules",
   "tiers",
   "sybil_rules",
+  "moderation",
 ] as const;
 
 type AllowedKey = (typeof ALLOWED_KEYS)[number];

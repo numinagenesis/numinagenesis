@@ -1,8 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   webpack(config) {
-    // Wagmi v3 bundles optional connector packages that aren't installed.
-    // Alias them to false so webpack emits an empty module instead of erroring.
+    // Wagmi v2 + RainbowKit v2: stub optional connector packages that are not
+    // installed so webpack emits an empty module instead of erroring.
+    // @walletconnect/ethereum-provider is intentionally NOT stubbed — it is a
+    // real installed dependency required by RainbowKit's WalletConnect connector.
     const optionalConnectorPeers = [
       "porto/internal",
       "@base-org/account",
@@ -10,7 +12,6 @@ const nextConfig = {
       "@metamask/connect-evm",
       "@safe-global/safe-apps-sdk",
       "@safe-global/safe-apps-provider",
-      "@walletconnect/ethereum-provider",
       "accounts",
     ];
     for (const pkg of optionalConnectorPeers) {
