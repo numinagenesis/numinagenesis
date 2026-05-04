@@ -11,6 +11,8 @@ interface AgentCardProps {
   flavorText?: string;
   rarity?: Rarity;
   revealed?: boolean;
+  fragmentId?: string;
+  soulHash?: string;
 }
 
 const RARITY_LABEL: Record<Rarity, string> = {
@@ -24,6 +26,7 @@ const RARITY_LABEL: Record<Rarity, string> = {
 export default function AgentCard({
   division, tier = "operator", tokenId = "???",
   flavorText = "MINT TO REVEAL", rarity = "classified", revealed = false,
+  fragmentId, soulHash,
 }: AgentCardProps) {
   const div = division !== "classified" ? DIVISIONS[division] : null;
   const tierInfo = tier !== "classified" ? TIERS[tier as TierKey] : null;
@@ -80,6 +83,18 @@ export default function AgentCard({
             {revealed ? "RESOLVED ✓" : "PENDING"}
           </span>
         </div>
+        {fragmentId && (
+          <div className="flex justify-between">
+            <span className="mono text-[10px] text-dim">FRAGMENT</span>
+            <span className="mono text-[10px] text-primary">{fragmentId}</span>
+          </div>
+        )}
+        {soulHash && (
+          <div className="flex justify-between gap-2 min-w-0">
+            <span className="mono text-[10px] text-dim shrink-0">SOUL HASH</span>
+            <span className="mono text-[10px] text-muted truncate">{soulHash.slice(0, 12)}…</span>
+          </div>
+        )}
       </div>
     </div>
   );

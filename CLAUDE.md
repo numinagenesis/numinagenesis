@@ -38,6 +38,8 @@ numina/
       queue/
         page.tsx           → /admin/queue  moderation queue (server component, admin-gated)
         client.tsx         → QueueClient  — interactive approve/reject card list
+    forge/
+      page.tsx             → /forge     persistent agent page (wallet-gated, SIWE required)
     summon/
       page.tsx             → /summon    agent preview flow (no chain writes)
     docs/
@@ -77,6 +79,9 @@ numina/
       factory-submissions/route.ts  → factory feature (separate from points)
       factory-submit/route.ts       → factory feature
       summon-task/route.ts          → /summon LLM call via OpenRouter
+      forge/
+        summon/route.ts            → POST /api/forge/summon  — create/return persistent agent
+        status/route.ts            → GET  /api/forge/status  — fetch agent + fragment balance
 
   components/
     Nav.tsx                → sticky nav, mobile hamburger, active-link highlight
@@ -88,6 +93,7 @@ numina/
   lib/
     supabase.ts            → anon Supabase client (public reads, RLS enforced)
     supabase-admin.ts      → service-role client (admin writes only, server-side)
+    supabase-forge.ts      → forge types (PreMintAgent, SoulFragment) + WL_THRESHOLD=500
     session.ts             → iron-session config + SessionData type (xChallenge fields added)
     session-user.ts        → requireUser() — gates user-facing API routes
     admin-auth.ts          → requireAdmin() — gates /admin API routes
@@ -230,6 +236,25 @@ submission_count int  DEFAULT 0    cumulative approved submissions
 last_seen_at    timestamptz
 ```
 
+**`pre_mint_agents`** (Forge F1)
+```
+id           uuid  PRIMARY KEY DEFAULT gen_random_uuid()
+wallet       text  NOT NULL  REFERENCES wallets(address)
+division     text  NOT NULL
+tier         text  NOT NULL
+fragment_id  text  NOT NULL  ("Fragment #XXXX")
+soul_hash    text  NOT NULL  (sha256(division+tier+wallet+timestamp) hex)
+is_active    bool  DEFAULT true
+created_at   timestamptz DEFAULT now()
+```
+
+**`soul_fragments`** (Forge F1)
+```
+wallet          text  PRIMARY KEY  REFERENCES wallets(address)
+balance         int   DEFAULT 0
+updated_at      timestamptz DEFAULT now()
+```
+
 **RLS policy:** public SELECT on all tables. All writes go through
 `supabaseAdmin` (service role) in server-side API routes only.
 
@@ -257,6 +282,24 @@ VALUES (
   '{"requireXBinding":false,"maxXAccountSubmissionsPerDay":3,"minTweetSimilarityDistance":0.7,"minAccountFollowingCount":0,"minAccountTotalTweets":0,"blockDefaultProfileImages":false}',
   now()
 ) ON CONFLICT (key) DO NOTHING;
+
+-- Forge F1 tables
+CREATE TABLE IF NOT EXISTS pre_mint_agents (
+  id           uuid  PRIMARY KEY DEFAULT gen_random_uuid(),
+  wallet       text  NOT NULL  REFERENCES wallets(address),
+  division     text  NOT NULL,
+  tier         text  NOT NULL,
+  fragment_id  text  NOT NULL,
+  soul_hash    text  NOT NULL,
+  is_active    bool  DEFAULT true,
+  created_at   timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS soul_fragments (
+  wallet      text  PRIMARY KEY  REFERENCES wallets(address),
+  balance     int   DEFAULT 0,
+  updated_at  timestamptz DEFAULT now()
+);
 ```
 
 ---
@@ -504,6 +547,7 @@ HOME / SUMMON / DOCS / MINT / POINTS / LEADERBOARD
 **Exists and ships:**
 ```
 /               landing
+/forge          persistent agent (wallet-gated, SIWE, pre_mint_agents + soul_fragments)
 /summon         agent preview (OpenRouter, no chain)
 /docs           NUMINA info page
 /mint           coming-soon
@@ -537,6 +581,9 @@ POST /api/x-binding/verify       body: { tweetUrl }
 
 GET  /api/admin/queue            — pending submissions list + count (admin only)
 POST /api/admin/moderate         body: { id, action: "approve"|"reject", reason? }
+
+POST /api/forge/summon       — create persistent agent (or return existing)
+GET  /api/forge/status       — fetch active agent + soul fragment balance
 
 POST /api/summon-task
 GET  /api/factory-submissions
@@ -591,11 +638,12 @@ Stage 3   ✅  Submission engine — fxtwitter validation, points, dashboard
 Stage 3.5 ✅  Anti-sybil — X binding, quality checks, content similarity
 Stage 4   ✅  Leaderboard — public /leaderboard, stats grid, tier breakdown, top-100 table
 Stage 5   ✅  Moderation queue — /admin/queue, approve/reject, pending hold on points
+Forge F1  ✅  Agent persistence — /forge, pre_mint_agents, soul_fragments, fragment meter
 ```
 
 All stages targeting a single production launch (not shipped yet).
 Phase 1 v1 feature-complete — ready for pre-launch review.
-Last successful build: `npm run build` exits 0, 30 routes, no type errors.
+Last successful build: `npm run build` exits 0, 32 routes, no type errors.
 
 ---
 
