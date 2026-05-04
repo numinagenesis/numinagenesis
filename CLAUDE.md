@@ -58,8 +58,11 @@ numina/
     factory/
       page.tsx             → /factory   agent factory page
     forge/
+      page.tsx             → /forge       forge hub (wallet-gated, F1+)
       swap/
         page.tsx           → /forge/swap  swap marketplace (wallet-gated, Forge F6)
+    collab/
+      page.tsx             → /collab      partner collab request form (public)
     api/
       auth/
         nonce/route.ts     → GET  /api/auth/nonce        — generate SIWE nonce
@@ -82,6 +85,10 @@ numina/
       summon-task/route.ts          → /summon LLM call via OpenRouter
       forge/
         swap/route.ts               → GET/POST /api/forge/swap  (Forge F6 swap marketplace)
+      collab/route.ts               → GET (admin, pending count) / POST (public submission)
+      admin/
+        collab/route.ts             → POST /api/admin/collab  approve|reject (admin only)
+      raffle/route.ts               → GET /api/raffle?action=status|populate|draw (admin only)
 
   components/
     Nav.tsx                → sticky nav, mobile hamburger, active-link highlight
@@ -128,6 +135,8 @@ Seven cards rendered in `StateC` of `/admin`:
 | 6 | `SybilRulesCard` | `sybil_rules` | X binding toggle + quality thresholds |
 | 7 | `ModerationCard` | `moderation` | Tier threshold + keyword triggers for pending queue |
 | 8 | `WalletToolsCard` | — | Admin unbind-X-account tool (no config key) |
+| 9 | `CollabQueueCard` | — | Shows pending collab count + link to /admin/collab |
+| 10 | `RaffleCard` | — | Populate raffle entries + draw winner |
 
 ---
 
@@ -235,6 +244,30 @@ submission_count int  DEFAULT 0    cumulative approved submissions
 last_seen_at    timestamptz
 ```
 
+**`collab_requests`** (Forge F7)
+```
+id                  uuid  PRIMARY KEY DEFAULT gen_random_uuid()
+project_name        text  NOT NULL
+twitter_handle      text  NOT NULL    stored without @, lowercase
+wallet              text  NOT NULL    lowercase
+offering            text  NOT NULL
+verification_tweet  text  NOT NULL    URL of verification tweet
+status              text  DEFAULT 'pending'  ('pending' | 'approved' | 'rejected')
+spots_allocated     integer DEFAULT 0  max 50, enforced server-side
+reviewed_by         text  NULLABLE    admin wallet address
+created_at          timestamptz DEFAULT now()
+resolved_at         timestamptz NULLABLE
+```
+
+**`raffle_entries`** (Forge F7)
+```
+id          uuid  PRIMARY KEY DEFAULT gen_random_uuid()
+wallet      text  NOT NULL REFERENCES wallets(address)
+tickets     integer DEFAULT 1
+won         boolean DEFAULT false
+created_at  timestamptz DEFAULT now()
+```
+
 **`swap_listings`** (Forge F6)
 ```
 id              uuid  PRIMARY KEY DEFAULT gen_random_uuid()
@@ -250,6 +283,31 @@ expires_at      timestamptz DEFAULT now() + interval '72 hours'
 
 **RLS policy:** public SELECT on all tables. All writes go through
 `supabaseAdmin` (service role) in server-side API routes only.
+
+**SQL to run in Supabase before Forge F7 goes live:**
+```sql
+CREATE TABLE IF NOT EXISTS collab_requests (
+  id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_name        text NOT NULL,
+  twitter_handle      text NOT NULL,
+  wallet              text NOT NULL,
+  offering            text NOT NULL,
+  verification_tweet  text NOT NULL,
+  status              text DEFAULT 'pending',
+  spots_allocated     integer DEFAULT 0,
+  reviewed_by         text,
+  created_at          timestamptz DEFAULT now(),
+  resolved_at         timestamptz
+);
+
+CREATE TABLE IF NOT EXISTS raffle_entries (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  wallet      text NOT NULL REFERENCES wallets(address),
+  tickets     integer DEFAULT 1,
+  won         boolean DEFAULT false,
+  created_at  timestamptz DEFAULT now()
+);
+```
 
 **SQL to run in Supabase before Forge F6 goes live:**
 ```sql
@@ -547,7 +605,10 @@ HOME / SUMMON / DOCS / MINT / POINTS / LEADERBOARD
 /divisions      lore
 /lore           lore
 /factory        agent factory
+/forge          forge hub (wallet-gated, links to swap + collab)
 /forge/swap     swap marketplace (wallet-gated, Forge F6)
+/collab         partner collab request form (public, no auth)
+/admin/collab   collab queue review (hidden, admin-gated)
 /verify         task hash verification (Phase 2, partial)
 ```
 
@@ -578,6 +639,11 @@ POST /api/factory-submit
 
 GET  /api/forge/swap         — open listings (public)
 POST /api/forge/swap         — body: { action: "list"|"accept"|"cancel", ... }
+
+GET  /api/collab             — pending count (admin only)
+POST /api/collab             — submit collab request (public)
+POST /api/admin/collab       — body: { action: "approve"|"reject", id, spots_allocated? }
+GET  /api/raffle             — ?action=status|populate|draw (admin only)
 ```
 
 ---
@@ -629,6 +695,7 @@ Stage 3.5 ✅  Anti-sybil — X binding, quality checks, content similarity
 Stage 4   ✅  Leaderboard — public /leaderboard, stats grid, tier breakdown, top-100 table
 Stage 5   ✅  Moderation queue — /admin/queue, approve/reject, pending hold on points
 Forge F6  ✅  Swap marketplace — /forge/swap, open listings, accept/cancel, 72h expiry
+Forge F7  ✅  Collab + raffle — /collab form, admin queue, raffle populate/draw
 ```
 
 All stages targeting a single production launch (not shipped yet).

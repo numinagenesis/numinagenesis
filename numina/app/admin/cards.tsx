@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 // ── Shared types ───────────────────────────────────────────────────────────────
 
@@ -694,6 +694,171 @@ export function WalletToolsCard() {
             {unbindMsg}
           </p>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ── Card 9: Collab Queue ──────────────────────────────────────────────────────
+
+type CollabStatus = "loading" | "ready" | "error";
+
+export function CollabQueueCard() {
+  const [count, setCount] = useState<number | null>(null);
+  const [queueStatus, setQueueStatus] = useState<CollabStatus>("loading");
+
+  useEffect(() => {
+    fetch("/api/collab")
+      .then((r) => r.json())
+      .then((d) => { setCount(d.count ?? 0); setQueueStatus("ready"); })
+      .catch(() => setQueueStatus("error"));
+  }, []);
+
+  return (
+    <div className="numina-card bracketed" style={{ padding: "24px", background: "#040404" }}>
+      <p className="pixel text-[7px] text-dim mb-5">// COLLAB QUEUE</p>
+      <div className="flex flex-col gap-4">
+        {queueStatus === "loading" && (
+          <p className="pixel text-[7px] text-dim">LOADING...</p>
+        )}
+        {queueStatus === "error" && (
+          <p className="mono text-xs" style={{ color: "#FF4444" }}>Failed to load count.</p>
+        )}
+        {queueStatus === "ready" && (
+          <p className="mono text-xs" style={{ color: (count ?? 0) > 0 ? "#aaaa44" : "#444444" }}>
+            {count} pending collab request{count !== 1 ? "s" : ""}
+          </p>
+        )}
+        <a
+          href="/admin/collab"
+          className="btn-ghost pixel text-[7px]"
+          style={{ textAlign: "center", textDecoration: "none", display: "block", padding: "10px 0" }}
+        >
+          → VIEW COLLAB QUEUE
+        </a>
+      </div>
+    </div>
+  );
+}
+
+// ── Card 10: Raffle ───────────────────────────────────────────────────────────
+
+type RaffleAction = "idle" | "populating" | "drawing" | "error";
+
+type RaffleStatus = {
+  eligible_count: number;
+  entry_count: number;
+  last_winner: string | null;
+};
+
+export function RaffleCard() {
+  const [raffleStatus, setRaffleStatus] = useState<RaffleStatus | null>(null);
+  const [action, setAction] = useState<RaffleAction>("idle");
+  const [lastWinner, setLastWinner] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => { fetchStatus(); }, []);
+
+  async function fetchStatus() {
+    try {
+      const res = await fetch("/api/raffle?action=status");
+      if (res.ok) setRaffleStatus(await res.json());
+    } catch { /* non-critical */ }
+  }
+
+  async function populate() {
+    if (action !== "idle") return;
+    setAction("populating");
+    setMsg(null);
+    try {
+      const res = await fetch("/api/raffle?action=populate");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message ?? "Failed");
+      setMsg(`Inserted ${data.inserted} wallets into raffle.`);
+      await fetchStatus();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Populate failed");
+    } finally {
+      setAction("idle");
+    }
+  }
+
+  async function draw() {
+    if (action !== "idle") return;
+    if (!window.confirm("Draw a winner now? This cannot be undone.")) return;
+    setAction("drawing");
+    setMsg(null);
+    try {
+      const res = await fetch("/api/raffle?action=draw");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message ?? "Failed");
+      setLastWinner(data.winner_wallet);
+      setMsg(null);
+      await fetchStatus();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Draw failed");
+    } finally {
+      setAction("idle");
+    }
+  }
+
+  const winner = lastWinner ?? raffleStatus?.last_winner ?? null;
+
+  return (
+    <div className="numina-card bracketed" style={{ padding: "24px", background: "#040404" }}>
+      <p className="pixel text-[7px] text-dim mb-5">// RAFFLE</p>
+      <div className="flex flex-col gap-4">
+        {raffleStatus && (
+          <div className="flex flex-col gap-1">
+            <p className="mono text-xs" style={{ color: "#555555" }}>
+              Eligible wallets:{" "}
+              <span style={{ color: "#FFFFFF" }}>{raffleStatus.eligible_count}</span>
+            </p>
+            <p className="mono text-xs" style={{ color: "#555555" }}>
+              Entries in raffle:{" "}
+              <span style={{ color: "#FFFFFF" }}>{raffleStatus.entry_count}</span>
+            </p>
+          </div>
+        )}
+
+        {winner && (
+          <div
+            style={{
+              background: "#080808",
+              border: "1px solid #2a2a2a",
+              padding: "10px 14px",
+            }}
+          >
+            <p className="pixel text-[6px] text-dim mb-1">LAST WINNER</p>
+            <p className="mono text-xs" style={{ color: "#44aa44" }}>
+              {winner.slice(0, 10)}...{winner.slice(-6)}
+            </p>
+          </div>
+        )}
+
+        {msg && (
+          <p className="mono text-xs" style={{ color: "#888888" }}>
+            {msg}
+          </p>
+        )}
+
+        <button
+          onClick={populate}
+          disabled={action !== "idle"}
+          className="btn-ghost pixel text-[7px]"
+          style={{ width: "100%" }}
+        >
+          {action === "populating" ? "POPULATING..." : "POPULATE RAFFLE"}
+        </button>
+
+        <button
+          onClick={draw}
+          disabled={action !== "idle"}
+          className="btn-amber pixel text-[7px]"
+          style={{ width: "100%" }}
+        >
+          {action === "drawing" ? "DRAWING..." : "DRAW WINNER"}
+        </button>
       </div>
     </div>
   );
