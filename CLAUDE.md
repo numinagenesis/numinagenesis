@@ -681,6 +681,7 @@ Forge F1  ✅  Agent persistence — /forge, pre_mint_agents, soul_fragments, fr
 Forge F2  ✅  Training + fragments — /api/forge/train, training_tasks, 10/day limit, live meter
 Forge F3  ✅  Save + history — /api/forge/history, TaskHistory component, deploy/history tabs, summon save
 Forge F4  ✅  Burn mechanic — /api/forge/burn, BurnModal, 24h cooldown, 50% fragment carry-over
+Forge F5  ✅  Leaderboard upgrade — FRAGMENTS tab (soul_fragments top 100, division/tier join, WL status badges, top-50 highlight); POINTS tab preserved; default tab = FRAGMENTS
 ```
 
 All stages targeting a single production launch (not shipped yet).
