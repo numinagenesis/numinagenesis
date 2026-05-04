@@ -6,11 +6,17 @@ import { useState, useEffect } from "react";
 const LINKS = [
   { href: "/",            label: "HOME"        },
   { href: "/summon",      label: "SUMMON"      },
+  { href: "/forge",       label: "FORGE"       },
   { href: "/docs",        label: "DOCS"        },
   { href: "/mint",        label: "MINT"        },
   { href: "/points",      label: "POINTS"      },
   { href: "/leaderboard", label: "LEADERBOARD" },
 ];
+
+function isActive(href: string, path: string) {
+  if (href === "/") return path === "/";
+  return path === href || path.startsWith(href + "/");
+}
 
 export default function Nav() {
   const path = usePathname();
@@ -41,8 +47,8 @@ export default function Nav() {
             <Link key={href} href={href}
               className="pixel text-[7px] px-2 py-1.5 transition-colors"
               style={{
-                color: path === href ? "#FFFFFF" : "#666666",
-                borderBottom: path === href ? "1px solid #FFFFFF" : "1px solid transparent",
+                color: isActive(href, path) ? "#FFFFFF" : "#666666",
+                borderBottom: isActive(href, path) ? "1px solid #FFFFFF" : "1px solid transparent",
               }}>
               {label}
             </Link>
@@ -90,7 +96,7 @@ export default function Nav() {
               className="pixel w-full text-center"
               style={{
                 fontSize: 16,
-                color: path === href ? "#FFFFFF" : "#555555",
+                color: isActive(href, path) ? "#FFFFFF" : "#555555",
                 padding: "24px 0",
                 borderBottom: "1px solid #111111",
                 letterSpacing: "0.1em",
