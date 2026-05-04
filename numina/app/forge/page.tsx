@@ -2,11 +2,52 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ConnectAndSignIn } from "@/components/ConnectAndSignIn";
 
 export default function ForgePage() {
+  const router = useRouter();
   const [sessionAddr, setSessionAddr] = useState<string | null>(null);
+  const [checked, setChecked] = useState(false);
 
+  function handleSession(addr: string | null) {
+    setSessionAddr(addr);
+    setChecked(true);
+  }
+
+  // Not yet checked — ConnectAndSignIn shows "—" while it fetches /api/auth/me
+  if (!checked) {
+    return (
+      <main className="flex flex-col items-center justify-center min-h-[70vh] px-6">
+        <ConnectAndSignIn onSessionChange={handleSession} />
+      </main>
+    );
+  }
+
+  // No session — show connect prompt
+  if (!sessionAddr) {
+    return (
+      <main className="flex flex-col items-center justify-center min-h-[70vh] px-6 text-center gap-6">
+        <p className="pixel text-[7px] text-dim">// THE FORGE</p>
+        <h1 className="pixel glitch" style={{ fontSize: "clamp(20px,4vw,36px)", color: "#FFFFFF" }}>
+          FORGE
+        </h1>
+        <p className="mono text-xs" style={{ color: "#444444", maxWidth: 320 }}>
+          Connect your wallet to access the pre-mint agent utility layer.
+        </p>
+        <ConnectAndSignIn onSessionChange={handleSession} />
+        <button
+          onClick={() => router.push("/")}
+          className="mono text-xs"
+          style={{ color: "#333333", background: "none", border: "none", cursor: "pointer", marginTop: 8 }}
+        >
+          ← back to home
+        </button>
+      </main>
+    );
+  }
+
+  // Connected — show forge content
   return (
     <main className="px-6 py-16 max-w-4xl mx-auto">
       {/* Header */}
@@ -18,11 +59,6 @@ export default function ForgePage() {
         </p>
       </div>
 
-      {/* Auth */}
-      <div className="flex justify-center mb-10">
-        <ConnectAndSignIn onSessionChange={setSessionAddr} />
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Burn card */}
         <div className="numina-card bracketed" style={{ padding: "28px", background: "#040404" }}>
@@ -31,41 +67,34 @@ export default function ForgePage() {
             Sacrifice fragments to upgrade your agent&apos;s tier. Irreversible.
           </p>
 
-          {!sessionAddr ? (
-            <p className="mono text-xs" style={{ color: "#333333" }}>
-              Connect wallet to burn fragments.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-3">
-              <div
-                style={{
-                  background: "#080808",
-                  border: "1px solid #1c1c1c",
-                  padding: "16px",
-                  textAlign: "center",
-                }}
-              >
-                <p className="pixel text-[7px]" style={{ color: "#333333" }}>
-                  BURN — COMING SOON
-                </p>
-              </div>
-
-              {/* Swap link — below burn button */}
-              <Link
-                href="/forge/swap"
-                className="mono text-xs"
-                style={{
-                  color: "#555555",
-                  textDecoration: "none",
-                  display: "block",
-                  textAlign: "center",
-                  paddingTop: 8,
-                }}
-              >
-                &#8644; SWAP MARKETPLACE
-              </Link>
+          <div className="flex flex-col gap-3">
+            <div
+              style={{
+                background: "#080808",
+                border: "1px solid #1c1c1c",
+                padding: "16px",
+                textAlign: "center",
+              }}
+            >
+              <p className="pixel text-[7px]" style={{ color: "#333333" }}>
+                BURN — COMING SOON
+              </p>
             </div>
-          )}
+
+            <Link
+              href="/forge/swap"
+              className="mono text-xs"
+              style={{
+                color: "#555555",
+                textDecoration: "none",
+                display: "block",
+                textAlign: "center",
+                paddingTop: 8,
+              }}
+            >
+              &#8644; SWAP MARKETPLACE
+            </Link>
+          </div>
         </div>
 
         {/* Info card */}
