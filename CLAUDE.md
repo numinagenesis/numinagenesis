@@ -57,6 +57,9 @@ numina/
       page.tsx             → /lore      lore page
     factory/
       page.tsx             → /factory   agent factory page
+    forge/
+      swap/
+        page.tsx           → /forge/swap  swap marketplace (wallet-gated, Forge F6)
     api/
       auth/
         nonce/route.ts     → GET  /api/auth/nonce        — generate SIWE nonce
@@ -77,6 +80,8 @@ numina/
       factory-submissions/route.ts  → factory feature (separate from points)
       factory-submit/route.ts       → factory feature
       summon-task/route.ts          → /summon LLM call via OpenRouter
+      forge/
+        swap/route.ts               → GET/POST /api/forge/swap  (Forge F6 swap marketplace)
 
   components/
     Nav.tsx                → sticky nav, mobile hamburger, active-link highlight
@@ -230,8 +235,36 @@ submission_count int  DEFAULT 0    cumulative approved submissions
 last_seen_at    timestamptz
 ```
 
+**`swap_listings`** (Forge F6)
+```
+id              uuid  PRIMARY KEY DEFAULT gen_random_uuid()
+offerer_wallet  text  NOT NULL REFERENCES wallets(address)
+agent_id        uuid  NOT NULL REFERENCES pre_mint_agents(id)
+wants_division  text  NULLABLE    division key offerer wants (null = any)
+status          text  DEFAULT 'open'  ('open' | 'resolved' | 'cancelled')
+matched_wallet  text  NULLABLE    wallet that accepted the swap
+created_at      timestamptz DEFAULT now()
+resolved_at     timestamptz NULLABLE
+expires_at      timestamptz DEFAULT now() + interval '72 hours'
+```
+
 **RLS policy:** public SELECT on all tables. All writes go through
 `supabaseAdmin` (service role) in server-side API routes only.
+
+**SQL to run in Supabase before Forge F6 goes live:**
+```sql
+CREATE TABLE IF NOT EXISTS swap_listings (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  offerer_wallet  text NOT NULL REFERENCES wallets(address),
+  agent_id        uuid NOT NULL REFERENCES pre_mint_agents(id),
+  wants_division  text,
+  status          text DEFAULT 'open',
+  matched_wallet  text,
+  created_at      timestamptz DEFAULT now(),
+  resolved_at     timestamptz,
+  expires_at      timestamptz DEFAULT now() + interval '72 hours'
+);
+```
 
 **SQL to run in Supabase before Stage 3.5 features go live:**
 ```sql
@@ -514,6 +547,7 @@ HOME / SUMMON / DOCS / MINT / POINTS / LEADERBOARD
 /divisions      lore
 /lore           lore
 /factory        agent factory
+/forge/swap     swap marketplace (wallet-gated, Forge F6)
 /verify         task hash verification (Phase 2, partial)
 ```
 
@@ -541,6 +575,9 @@ POST /api/admin/moderate         body: { id, action: "approve"|"reject", reason?
 POST /api/summon-task
 GET  /api/factory-submissions
 POST /api/factory-submit
+
+GET  /api/forge/swap         — open listings (public)
+POST /api/forge/swap         — body: { action: "list"|"accept"|"cancel", ... }
 ```
 
 ---
@@ -591,11 +628,12 @@ Stage 3   ✅  Submission engine — fxtwitter validation, points, dashboard
 Stage 3.5 ✅  Anti-sybil — X binding, quality checks, content similarity
 Stage 4   ✅  Leaderboard — public /leaderboard, stats grid, tier breakdown, top-100 table
 Stage 5   ✅  Moderation queue — /admin/queue, approve/reject, pending hold on points
+Forge F6  ✅  Swap marketplace — /forge/swap, open listings, accept/cancel, 72h expiry
 ```
 
 All stages targeting a single production launch (not shipped yet).
 Phase 1 v1 feature-complete — ready for pre-launch review.
-Last successful build: `npm run build` exits 0, 30 routes, no type errors.
+Last successful build: `npm run build` exits 0, 32 routes, no type errors.
 
 ---
 
