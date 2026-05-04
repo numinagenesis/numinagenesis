@@ -3,6 +3,7 @@ import { createHash } from "crypto";
 import { requireUser } from "@/lib/session-user";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { DIVISIONS, type DivisionKey } from "@/lib/divisions";
+import { getForgeConfig } from "@/lib/forge-config";
 
 const DIV_KEYS = Object.keys(DIVISIONS) as DivisionKey[];
 const BURN_COOLDOWN_MS = 24 * 60 * 60 * 1000;
@@ -67,8 +68,9 @@ export async function POST(_req: NextRequest) {
     .eq("wallet", wallet)
     .maybeSingle();
 
+  const forgeConfig = await getForgeConfig();
   const balance = fragRow?.balance ?? 0;
-  const carryOver = Math.floor(balance * 0.5);
+  const carryOver = Math.floor(balance * forgeConfig.burn_carry_rate);
   const lostFragments = balance - carryOver;
   const now = new Date().toISOString();
 

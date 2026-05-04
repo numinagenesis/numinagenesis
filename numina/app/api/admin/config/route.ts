@@ -11,6 +11,8 @@ const ALLOWED_KEYS = [
   "tiers",
   "sybil_rules",
   "moderation",
+  "forge_config",
+  "supply_config",
 ] as const;
 
 type AllowedKey = (typeof ALLOWED_KEYS)[number];

@@ -34,7 +34,7 @@ numina/
     globals.css            → global styles
     admin/
       page.tsx             → /admin     wallet-gated config panel (NOT in nav)
-      cards.tsx            → 8 config cards (see Admin cards section below)
+      cards.tsx            → 10 config cards (see Admin cards section below)
       queue/
         page.tsx           → /admin/queue  moderation queue (server component, admin-gated)
         client.tsx         → QueueClient  — interactive approve/reject card list
@@ -103,6 +103,7 @@ numina/
     session-user.ts        → requireUser() — gates user-facing API routes
     admin-auth.ts          → requireAdmin() — gates /admin API routes
     config-cache.ts        → getConfig<T>(key) with 30s in-memory TTL
+    forge-config.ts        → getForgeConfig() / getSupplyConfig() — forge constants with 30s TTL + safe in-code defaults
     parse-tweet-url.ts     → parseTweetUrl() — normalises twitter/x/mobile URLs
     fxtwitter.ts           → fetchTweet(id) via fxtwitter API, 10s timeout
     detect-thread.ts       → isThreadStarter(tweet) — thread bonus detection
@@ -134,6 +135,8 @@ Seven cards rendered in `StateC` of `/admin`:
 | 6 | `SybilRulesCard` | `sybil_rules` | X binding toggle + quality thresholds |
 | 7 | `ModerationCard` | `moderation` | Tier threshold + keyword triggers for pending queue |
 | 8 | `WalletToolsCard` | — | Admin unbind-X-account tool (no config key) |
+| 9 | `ForgeConfigCard` | `forge_config` | Forge constants: WL thresholds, daily limit, burn carry rate, etc. |
+| 10 | `SupplyConfigCard` | `supply_config` | Supply, mint price, chain (display values for /mint + /docs) |
 
 ---
 
@@ -351,6 +354,8 @@ ALTER TABLE pre_mint_agents ADD COLUMN IF NOT EXISTS burned_at timestamptz;
 | `tiers` | `Array<{ name, threshold, reward }>` sorted ascending by threshold | tier system |
 | `sybil_rules` | `{ requireXBinding, maxXAccountSubmissionsPerDay, minTweetSimilarityDistance, minAccountFollowingCount, minAccountTotalTweets, blockDefaultProfileImages }` | sybil resistance (Stage 3.5) |
 | `moderation` | `{ manualReviewAboveTier: string\|null, manualReviewKeywords: string[] }` | pending queue triggers (Stage 5) |
+| `forge_config` | `{ wl_guaranteed, wl_bonus, daily_task_limit, burn_carry_rate, swap_expiry_hours, max_task_input, collab_pool }` | forge runtime constants (all numeric) |
+| `supply_config` | `{ supply: string, mint_price: string, chain: string }` | display values for /mint and /docs |
 
 Config is read server-side via `getConfig<T>(key)` in `lib/config-cache.ts` (30s
 in-memory TTL). Admin writes go through `PATCH /api/admin/config`. All seven keys
@@ -682,11 +687,12 @@ Forge F2  ✅  Training + fragments — /api/forge/train, training_tasks, 10/day
 Forge F3  ✅  Save + history — /api/forge/history, TaskHistory component, deploy/history tabs, summon save
 Forge F4  ✅  Burn mechanic — /api/forge/burn, BurnModal, 24h cooldown, 50% fragment carry-over
 Forge F5  ✅  Leaderboard upgrade — FRAGMENTS tab (soul_fragments top 100, division/tier join, WL status badges, top-50 highlight); POINTS tab preserved; default tab = FRAGMENTS
+Forge F6  ✅  Forge constants configurable from admin UI — forge_config + supply_config keys, ForgeConfigCard + SupplyConfigCard in /admin, getForgeConfig() / getSupplyConfig() helpers
 ```
 
 All stages targeting a single production launch (not shipped yet).
 Phase 1 v1 feature-complete — ready for pre-launch review.
-Last successful build: `npm run build` exits 0, 37 routes, no type errors.
+Last successful build: `npm run build` exits 0, no type errors.
 
 ---
 

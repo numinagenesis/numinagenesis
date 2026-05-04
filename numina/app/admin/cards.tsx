@@ -38,6 +38,22 @@ export type ModerationConfig = {
   manualReviewKeywords: string[];
 };
 
+export type ForgeConfig = {
+  wl_guaranteed:     number;
+  wl_bonus:          number;
+  daily_task_limit:  number;
+  burn_carry_rate:   number;
+  swap_expiry_hours: number;
+  max_task_input:    number;
+  collab_pool:       number;
+};
+
+export type SupplyConfig = {
+  supply:     string;
+  mint_price: string;
+  chain:      string;
+};
+
 export type FullConfig = {
   campaign_state: CampaignState;
   x_handle: XHandle;
@@ -46,6 +62,8 @@ export type FullConfig = {
   tiers: Tier[];
   sybil_rules?: SybilRules;
   moderation?: ModerationConfig;
+  forge_config?: ForgeConfig;
+  supply_config?: SupplyConfig;
 };
 
 // ── Save hook ─────────────────────────────────────────────────────────────────
@@ -701,6 +719,7 @@ export function WalletToolsCard() {
 
 // ── Card 8: Moderation ────────────────────────────────────────────────────────
 
+
 const MOD_DEFAULTS: ModerationConfig = {
   manualReviewAboveTier: null,
   manualReviewKeywords: [],
@@ -762,6 +781,162 @@ export function ModerationCard({ initial }: { initial?: ModerationConfig }) {
           rows={4}
           placeholder={"airdrop\nfree mint\nwen"}
           style={{ ...INPUT, resize: "vertical" }}
+        />
+      </Field>
+    </AdminCard>
+  );
+}
+
+// ── Card 9: Forge Config ──────────────────────────────────────────────────────
+
+const FORGE_DEFAULTS: ForgeConfig = {
+  wl_guaranteed:     500,
+  wl_bonus:          1000,
+  daily_task_limit:  10,
+  burn_carry_rate:   0.5,
+  swap_expiry_hours: 72,
+  max_task_input:    200,
+  collab_pool:       888,
+};
+
+export function ForgeConfigCard({ initial }: { initial?: ForgeConfig }) {
+  const [cfg, setCfg] = useState<ForgeConfig>(initial ?? { ...FORGE_DEFAULTS });
+  const { status, error, save } = useSave();
+
+  // burn_carry_rate stored as 0–1, edited as 0–100
+  const carryPct = Math.round(cfg.burn_carry_rate * 100);
+
+  function setNum(key: keyof ForgeConfig, raw: string) {
+    const n = Number(raw);
+    if (!isNaN(n)) setCfg((prev) => ({ ...prev, [key]: n }));
+  }
+
+  return (
+    <AdminCard
+      title="// FORGE CONFIG"
+      saveLabel="UPDATE FORGE CONFIG"
+      saveStatus={status}
+      saveError={error}
+      onSave={() => save("forge_config", cfg)}
+      helper="WL thresholds are fragment counts. burn_carry_rate: 0–100% of fragments kept after burn."
+    >
+      <Field label="WL Guaranteed Threshold (fragments)">
+        <input
+          type="number"
+          value={cfg.wl_guaranteed}
+          onChange={(e) => setNum("wl_guaranteed", e.target.value)}
+          style={INPUT}
+        />
+      </Field>
+      <Field label="WL Bonus Pool (fragments)">
+        <input
+          type="number"
+          value={cfg.wl_bonus}
+          onChange={(e) => setNum("wl_bonus", e.target.value)}
+          style={INPUT}
+        />
+      </Field>
+      <Field label="Daily Task Limit (tasks/day per wallet)">
+        <input
+          type="number"
+          value={cfg.daily_task_limit}
+          onChange={(e) => setNum("daily_task_limit", e.target.value)}
+          style={INPUT}
+        />
+      </Field>
+      <Field label={`Burn Carry Rate (${carryPct}% of fragments kept)`}>
+        <input
+          type="number"
+          min={0}
+          max={100}
+          value={carryPct}
+          onChange={(e) =>
+            setCfg((prev) => ({
+              ...prev,
+              burn_carry_rate: Math.min(100, Math.max(0, Number(e.target.value))) / 100,
+            }))
+          }
+          style={INPUT}
+        />
+      </Field>
+      <Field label="Swap Expiry Hours">
+        <input
+          type="number"
+          value={cfg.swap_expiry_hours}
+          onChange={(e) => setNum("swap_expiry_hours", e.target.value)}
+          style={INPUT}
+        />
+      </Field>
+      <Field label="Max Task Input Length (chars)">
+        <input
+          type="number"
+          value={cfg.max_task_input}
+          onChange={(e) => setNum("max_task_input", e.target.value)}
+          style={INPUT}
+        />
+      </Field>
+      <Field label="Collab Pool Size">
+        <input
+          type="number"
+          value={cfg.collab_pool}
+          onChange={(e) => setNum("collab_pool", e.target.value)}
+          style={INPUT}
+        />
+      </Field>
+    </AdminCard>
+  );
+}
+
+// ── Card 10: Supply Config ────────────────────────────────────────────────────
+
+const SUPPLY_DEFAULTS: SupplyConfig = {
+  supply:     "TBA",
+  mint_price: "TBA",
+  chain:      "Ethereum",
+};
+
+export function SupplyConfigCard({ initial }: { initial?: SupplyConfig }) {
+  const [cfg, setCfg] = useState<SupplyConfig>(initial ?? { ...SUPPLY_DEFAULTS });
+  const { status, error, save } = useSave();
+
+  function setStr(key: keyof SupplyConfig, val: string) {
+    setCfg((prev) => ({ ...prev, [key]: val }));
+  }
+
+  return (
+    <AdminCard
+      title="// SUPPLY CONFIG"
+      saveLabel="UPDATE SUPPLY CONFIG"
+      saveStatus={status}
+      saveError={error}
+      onSave={() => save("supply_config", cfg)}
+      helper="Displayed on /mint and /docs. Use 'TBA' until values are confirmed."
+    >
+      <Field label="Supply">
+        <input
+          type="text"
+          value={cfg.supply}
+          onChange={(e) => setStr("supply", e.target.value)}
+          placeholder="4444"
+          style={INPUT}
+        />
+      </Field>
+      <Field label="Mint Price">
+        <input
+          type="text"
+          value={cfg.mint_price}
+          onChange={(e) => setStr("mint_price", e.target.value)}
+          placeholder="0.05 ETH"
+          style={INPUT}
+        />
+      </Field>
+      <Field label="Chain">
+        <input
+          type="text"
+          value={cfg.chain}
+          onChange={(e) => setStr("chain", e.target.value)}
+          placeholder="Ethereum"
+          style={INPUT}
         />
       </Field>
     </AdminCard>

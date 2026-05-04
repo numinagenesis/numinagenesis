@@ -15,6 +15,8 @@ import {
   SybilRulesCard,
   WalletToolsCard,
   ModerationCard,
+  ForgeConfigCard,
+  SupplyConfigCard,
   type FullConfig,
 } from "./cards";
 
@@ -158,6 +160,15 @@ function StateC({
           <SybilRulesCard     initial={config.sybil_rules} />
           <ModerationCard     initial={config.moderation} />
           <WalletToolsCard />
+
+          <div className="flex items-center gap-4 mt-4">
+            <hr className="chain-border flex-1" />
+            <span className="pixel text-[7px] text-dim">FORGE CONFIG</span>
+            <hr className="chain-border flex-1" />
+          </div>
+
+          <ForgeConfigCard  initial={config.forge_config} />
+          <SupplyConfigCard initial={config.supply_config} />
         </div>
       )}
     </main>

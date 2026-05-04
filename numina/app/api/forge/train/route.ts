@@ -4,9 +4,7 @@ import { requireUser } from "@/lib/session-user";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { DIVISIONS, TIERS, type DivisionKey, type TierKey } from "@/lib/divisions";
 import { FRAGMENT_RATES } from "@/lib/fragment-rates";
-
-const DAILY_LIMIT = 10;
-const INPUT_MAX   = 200;
+import { getForgeConfig } from "@/lib/forge-config";
 
 async function pickAndFetchPersona(personas: string[], fallback: string): Promise<string> {
   if (personas.length === 0) return fallback;
@@ -25,6 +23,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
   const wallet = auth.address;
+
+  const forgeConfig = await getForgeConfig();
+  const DAILY_LIMIT = forgeConfig.daily_task_limit;
+  const INPUT_MAX   = forgeConfig.max_task_input;
 
   // ── Get active agent ──────────────────────────────────────────────────────
   const { data: agent } = await supabaseAdmin
@@ -51,7 +53,7 @@ export async function POST(req: NextRequest) {
   const tasksToday = rawCount ?? 0;
   if (tasksToday >= DAILY_LIMIT) {
     return NextResponse.json(
-      { error: "Daily limit reached (10 tasks/day)", tasks_today: tasksToday },
+      { error: `Daily limit reached (${DAILY_LIMIT} tasks/day)`, tasks_today: tasksToday },
       { status: 429 }
     );
   }
