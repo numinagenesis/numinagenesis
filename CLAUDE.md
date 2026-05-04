@@ -84,6 +84,7 @@ numina/
         status/route.ts            → GET  /api/forge/status  — fetch agent + fragment balance + tasks_today
         train/route.ts             → POST /api/forge/train   — run task, earn fragments, enforce daily limit
         history/route.ts           → GET  /api/forge/history — last 20 training_tasks for wallet (desc)
+        burn/route.ts              → POST /api/forge/burn    — burn active agent, carry 50% fragments, 24h cooldown
 
   components/
     Nav.tsx                → sticky nav, mobile hamburger, active-link highlight
@@ -240,7 +241,7 @@ submission_count int  DEFAULT 0    cumulative approved submissions
 last_seen_at    timestamptz
 ```
 
-**`pre_mint_agents`** (Forge F1+F2)
+**`pre_mint_agents`** (Forge F1+F2+F4)
 ```
 id           uuid  PRIMARY KEY DEFAULT gen_random_uuid()
 wallet       text  NOT NULL  REFERENCES wallets(address)
@@ -250,6 +251,7 @@ fragment_id  text  NOT NULL  ("Fragment #XXXX")
 soul_hash    text  NOT NULL  (sha256(division+tier+wallet+timestamp) hex)
 is_active    bool  DEFAULT true
 task_count   int   DEFAULT 0   cumulative tasks run (Forge F2)
+burned_at    timestamptz NULLABLE  set when agent is burned (Forge F4)
 created_at   timestamptz DEFAULT now()
 ```
 
@@ -331,6 +333,9 @@ CREATE TABLE IF NOT EXISTS training_tasks (
   task_hash        text  NOT NULL,
   created_at       timestamptz DEFAULT now()
 );
+
+-- Forge F4 — burn mechanic
+ALTER TABLE pre_mint_agents ADD COLUMN IF NOT EXISTS burned_at timestamptz;
 ```
 
 ---
@@ -617,6 +622,7 @@ POST /api/forge/summon       — create persistent agent (or return existing)
 GET  /api/forge/status       — fetch active agent + fragment balance + tasks_today
 POST /api/forge/train        — run LLM task, earn fragments, enforce 10/day limit
 GET  /api/forge/history      — last 20 training_tasks for signed-in wallet (desc)
+POST /api/forge/burn         — burn active agent (is_active→false, burned_at=now), carry 50% fragments, create new agent; 24h cooldown
 
 POST /api/summon-task
 GET  /api/factory-submissions
@@ -674,11 +680,12 @@ Stage 5   ✅  Moderation queue — /admin/queue, approve/reject, pending hold o
 Forge F1  ✅  Agent persistence — /forge, pre_mint_agents, soul_fragments, fragment meter
 Forge F2  ✅  Training + fragments — /api/forge/train, training_tasks, 10/day limit, live meter
 Forge F3  ✅  Save + history — /api/forge/history, TaskHistory component, deploy/history tabs, summon save
+Forge F4  ✅  Burn mechanic — /api/forge/burn, BurnModal, 24h cooldown, 50% fragment carry-over
 ```
 
 All stages targeting a single production launch (not shipped yet).
 Phase 1 v1 feature-complete — ready for pre-launch review.
-Last successful build: `npm run build` exits 0, 36 routes, no type errors.
+Last successful build: `npm run build` exits 0, 37 routes, no type errors.
 
 ---
 

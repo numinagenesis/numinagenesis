@@ -19,6 +19,127 @@ function tierToRarity(tier: string): "legendary" | "rare" | "uncommon" | "classi
   return "classified";
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function hoursUntil(iso: string): number {
+  return Math.ceil((new Date(iso).getTime() - Date.now()) / 3_600_000);
+}
+
+// ── Burn Modal ────────────────────────────────────────────────────────────────
+
+function BurnModal({
+  agent,
+  fragments,
+  burning,
+  burnError,
+  onConfirm,
+  onClose,
+}: {
+  agent: PreMintAgent;
+  fragments: number;
+  burning: boolean;
+  burnError: string;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  const div  = DIVISIONS[agent.division as DivisionKey];
+  const tier = TIERS[agent.tier as TierKey];
+  const carryOver = Math.floor(fragments * 0.5);
+  const forfeit   = fragments - carryOver;
+
+  return (
+    <div
+      style={{
+        position: "fixed", inset: 0,
+        background: "rgba(0,0,0,0.92)",
+        zIndex: 50,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 16,
+      }}
+      onClick={onClose}
+    >
+      <div
+        className="numina-card bracketed p-0"
+        style={{ maxWidth: 480, width: "100%" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-4 py-3"
+          style={{ borderBottom: "1px solid #330000", background: "#0A0000", flexShrink: 0 }}
+        >
+          <span className="pixel text-[7px]" style={{ color: "#FF4444" }}>// BURN AGENT</span>
+          <button
+            onClick={onClose}
+            className="mono text-[10px] text-dim"
+            style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 6px" }}
+          >
+            ✕ CLOSE
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-4 flex flex-col gap-4">
+          <p className="pixel text-[9px] text-center" style={{ color: "#FF4444", letterSpacing: "0.1em" }}>
+            THIS CANNOT BE UNDONE
+          </p>
+
+          <div className="flex flex-col gap-1.5">
+            {([
+              ["CURRENT AGENT",    `${div?.name.toUpperCase() ?? "?"} · ${tier?.name.toUpperCase() ?? "?"}`],
+              ["CURRENT BALANCE",  `${fragments} fragments`],
+              ["CARRY OVER (50%)", `${carryOver} fragments`],
+              ["FORFEIT (50%)",    `${forfeit} fragments`],
+            ] as [string, string][]).map(([k, v]) => (
+              <div key={k} className="flex justify-between gap-4">
+                <span className="mono text-[10px] text-dim shrink-0">{k}</span>
+                <span
+                  className="mono text-[10px] text-right"
+                  style={{ color: k === "FORFEIT (50%)" ? "#FF4444" : "#FFFFFF" }}
+                >
+                  {v}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {burnError && (
+            <p className="mono text-[10px] text-center" style={{ color: "#FF4444" }}>✗ {burnError}</p>
+          )}
+
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              disabled={burning}
+              className="btn-outline flex-1"
+              style={{ fontSize: 10 }}
+            >
+              CANCEL
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={burning}
+              className="flex-1"
+              style={{
+                background:  burning ? "#1a0000" : "#330000",
+                border:      "1px solid #FF4444",
+                color:       "#FF4444",
+                fontFamily:  "inherit",
+                fontSize:    10,
+                padding:     "10px 16px",
+                cursor:      burning ? "not-allowed" : "pointer",
+                opacity:     burning ? 0.6 : 1,
+              }}
+            >
+              {burning ? <span>BURNING<span className="blink">...</span></span> : "■ CONFIRM BURN"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Fragment Meter ────────────────────────────────────────────────────────────
 
 function FragmentMeter({ balance }: { balance: number }) {
@@ -78,6 +199,12 @@ export default function ForgePage() {
   // tab state
   const [activeTab,   setActiveTab]   = useState<"deploy" | "history">("deploy");
   const [historyKey,  setHistoryKey]  = useState(0);
+
+  // burn state
+  const [burnModal,       setBurnModal]       = useState(false);
+  const [burning,         setBurning]         = useState(false);
+  const [burnError,       setBurnError]       = useState("");
+  const [burnCooldownNext, setBurnCooldownNext] = useState<string | null>(null);
 
   // ── Session check + initial load ──────────────────────────────────────────
   const fetchStatus = useCallback(async () => {
@@ -148,6 +275,35 @@ export default function ForgePage() {
     }
   }
 
+  // ── Burn agent ────────────────────────────────────────────────────────────
+  async function burnAgent() {
+    setBurning(true);
+    setBurnError("");
+    try {
+      const res  = await fetch("/api/forge/burn", { method: "POST" });
+      const data = await res.json();
+      if (res.status === 429) {
+        setBurnCooldownNext(data.next_burn_at ?? null);
+        setBurnModal(false);
+        return;
+      }
+      if (!res.ok) { setBurnError(data.error ?? "Burn failed"); return; }
+      // Success — replace agent state without full page reload
+      setBurnModal(false);
+      setAgent(data.new_agent);
+      setFragments(data.carried_fragments ?? 0);
+      setTasksToday(0);
+      setTaskOutput("");
+      setLastFragsEarned(null);
+      setActiveTab("deploy");
+      setBurnCooldownNext(null);
+    } catch {
+      setBurnError("Network error — try again");
+    } finally {
+      setBurning(false);
+    }
+  }
+
   // ── Loading ───────────────────────────────────────────────────────────────
   if (loadState === "checking") {
     return (
@@ -200,6 +356,17 @@ export default function ForgePage() {
   const atLimit = tasksToday >= DAILY_LIMIT;
 
   return (
+    <>
+    {burnModal && (
+      <BurnModal
+        agent={agent}
+        fragments={fragments}
+        burning={burning}
+        burnError={burnError}
+        onConfirm={burnAgent}
+        onClose={() => { if (!burning) setBurnModal(false); }}
+      />
+    )}
     <main className="px-6 py-12 max-w-4xl mx-auto">
       <div className="flex items-center gap-4 mb-10">
         <hr className="chain-border flex-1" />
@@ -248,6 +415,30 @@ export default function ForgePage() {
             </div>
             <hr className="chain-border" />
             <FragmentMeter balance={fragments} />
+          </div>
+
+          {/* Burn button */}
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => { setBurnModal(true); setBurnError(""); }}
+              disabled={!!burnCooldownNext && new Date(burnCooldownNext).getTime() > Date.now()}
+              className="mono text-[9px]"
+              style={{
+                background: "none",
+                border:     "1px solid #330000",
+                color:      "#994444",
+                padding:    "4px 10px",
+                cursor:     (!!burnCooldownNext && new Date(burnCooldownNext).getTime() > Date.now()) ? "not-allowed" : "pointer",
+                opacity:    (!!burnCooldownNext && new Date(burnCooldownNext).getTime() > Date.now()) ? 0.4 : 1,
+              }}
+            >
+              ⊗ BURN AGENT
+            </button>
+            {burnCooldownNext && new Date(burnCooldownNext).getTime() > Date.now() && (
+              <span className="mono text-[9px]" style={{ color: "#664444" }}>
+                Next burn in {hoursUntil(burnCooldownNext)}h
+              </span>
+            )}
           </div>
 
           {/* Tab bar */}
@@ -399,5 +590,6 @@ export default function ForgePage() {
         </div>
       </div>
     </main>
+    </>
   );
 }
