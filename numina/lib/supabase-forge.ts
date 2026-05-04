@@ -8,6 +8,7 @@ export type PreMintAgent = {
   fragment_id: string;
   soul_hash: string;
   is_active: boolean;
+  task_count: number;
   created_at: string;
 };
 

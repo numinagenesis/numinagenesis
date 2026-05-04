@@ -81,7 +81,8 @@ numina/
       summon-task/route.ts          → /summon LLM call via OpenRouter
       forge/
         summon/route.ts            → POST /api/forge/summon  — create/return persistent agent
-        status/route.ts            → GET  /api/forge/status  — fetch agent + fragment balance
+        status/route.ts            → GET  /api/forge/status  — fetch agent + fragment balance + tasks_today
+        train/route.ts             → POST /api/forge/train   — run task, earn fragments, enforce daily limit
 
   components/
     Nav.tsx                → sticky nav, mobile hamburger, active-link highlight
@@ -94,6 +95,7 @@ numina/
     supabase.ts            → anon Supabase client (public reads, RLS enforced)
     supabase-admin.ts      → service-role client (admin writes only, server-side)
     supabase-forge.ts      → forge types (PreMintAgent, SoulFragment) + WL_THRESHOLD=500
+    fragment-rates.ts      → FRAGMENT_RATES { RECRUIT:10, OPERATOR:25, DIRECTOR:50, NUMINA PRIME:100 }
     session.ts             → iron-session config + SessionData type (xChallenge fields added)
     session-user.ts        → requireUser() — gates user-facing API routes
     admin-auth.ts          → requireAdmin() — gates /admin API routes
@@ -236,7 +238,7 @@ submission_count int  DEFAULT 0    cumulative approved submissions
 last_seen_at    timestamptz
 ```
 
-**`pre_mint_agents`** (Forge F1)
+**`pre_mint_agents`** (Forge F1+F2)
 ```
 id           uuid  PRIMARY KEY DEFAULT gen_random_uuid()
 wallet       text  NOT NULL  REFERENCES wallets(address)
@@ -245,6 +247,7 @@ tier         text  NOT NULL
 fragment_id  text  NOT NULL  ("Fragment #XXXX")
 soul_hash    text  NOT NULL  (sha256(division+tier+wallet+timestamp) hex)
 is_active    bool  DEFAULT true
+task_count   int   DEFAULT 0   cumulative tasks run (Forge F2)
 created_at   timestamptz DEFAULT now()
 ```
 
@@ -253,6 +256,18 @@ created_at   timestamptz DEFAULT now()
 wallet          text  PRIMARY KEY  REFERENCES wallets(address)
 balance         int   DEFAULT 0
 updated_at      timestamptz DEFAULT now()
+```
+
+**`training_tasks`** (Forge F2)
+```
+id               uuid  PRIMARY KEY DEFAULT gen_random_uuid()
+wallet           text  NOT NULL  REFERENCES wallets(address)
+agent_id         uuid  NOT NULL  REFERENCES pre_mint_agents(id)
+input            text  NOT NULL  (max 200 chars, enforced server + client)
+output           text  NOT NULL
+fragments_earned int   DEFAULT 0
+task_hash        text  NOT NULL  (sha256(input+output) hex)
+created_at       timestamptz DEFAULT now()
 ```
 
 **RLS policy:** public SELECT on all tables. All writes go through
@@ -299,6 +314,20 @@ CREATE TABLE IF NOT EXISTS soul_fragments (
   wallet      text  PRIMARY KEY  REFERENCES wallets(address),
   balance     int   DEFAULT 0,
   updated_at  timestamptz DEFAULT now()
+);
+
+-- Forge F2 — training tasks + task_count column
+ALTER TABLE pre_mint_agents ADD COLUMN IF NOT EXISTS task_count int DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS training_tasks (
+  id               uuid  PRIMARY KEY DEFAULT gen_random_uuid(),
+  wallet           text  NOT NULL  REFERENCES wallets(address),
+  agent_id         uuid  NOT NULL  REFERENCES pre_mint_agents(id),
+  input            text  NOT NULL,
+  output           text  NOT NULL,
+  fragments_earned int   DEFAULT 0,
+  task_hash        text  NOT NULL,
+  created_at       timestamptz DEFAULT now()
 );
 ```
 
@@ -583,7 +612,8 @@ GET  /api/admin/queue            — pending submissions list + count (admin onl
 POST /api/admin/moderate         body: { id, action: "approve"|"reject", reason? }
 
 POST /api/forge/summon       — create persistent agent (or return existing)
-GET  /api/forge/status       — fetch active agent + soul fragment balance
+GET  /api/forge/status       — fetch active agent + fragment balance + tasks_today
+POST /api/forge/train        — run LLM task, earn fragments, enforce 10/day limit
 
 POST /api/summon-task
 GET  /api/factory-submissions
@@ -639,11 +669,12 @@ Stage 3.5 ✅  Anti-sybil — X binding, quality checks, content similarity
 Stage 4   ✅  Leaderboard — public /leaderboard, stats grid, tier breakdown, top-100 table
 Stage 5   ✅  Moderation queue — /admin/queue, approve/reject, pending hold on points
 Forge F1  ✅  Agent persistence — /forge, pre_mint_agents, soul_fragments, fragment meter
+Forge F2  ✅  Training + fragments — /api/forge/train, training_tasks, 10/day limit, live meter
 ```
 
 All stages targeting a single production launch (not shipped yet).
 Phase 1 v1 feature-complete — ready for pre-launch review.
-Last successful build: `npm run build` exits 0, 32 routes, no type errors.
+Last successful build: `npm run build` exits 0, 35 routes, no type errors.
 
 ---
 

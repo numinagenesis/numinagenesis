@@ -9,7 +9,10 @@ export async function GET(_req: NextRequest) {
   }
   const wallet = auth.address;
 
-  const [{ data: agent }, { data: fragRow }] = await Promise.all([
+  const startOfToday = new Date();
+  startOfToday.setUTCHours(0, 0, 0, 0);
+
+  const [{ data: agent }, { data: fragRow }, { count: rawCount }] = await Promise.all([
     supabaseAdmin
       .from("pre_mint_agents")
       .select("*")
@@ -21,11 +24,20 @@ export async function GET(_req: NextRequest) {
       .select("balance")
       .eq("wallet", wallet)
       .maybeSingle(),
+    supabaseAdmin
+      .from("training_tasks")
+      .select("*", { count: "exact", head: true })
+      .eq("wallet", wallet)
+      .gte("created_at", startOfToday.toISOString()),
   ]);
 
   if (!agent) {
-    return NextResponse.json({ agent: null, fragments: 0 });
+    return NextResponse.json({ agent: null, fragments: 0, tasks_today: 0 });
   }
 
-  return NextResponse.json({ agent, fragments: fragRow?.balance ?? 0 });
+  return NextResponse.json({
+    agent,
+    fragments:   fragRow?.balance ?? 0,
+    tasks_today: rawCount ?? 0,
+  });
 }
