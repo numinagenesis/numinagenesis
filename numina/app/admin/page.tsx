@@ -15,8 +15,13 @@ import {
   SybilRulesCard,
   WalletToolsCard,
   ModerationCard,
+
   ForgeConfigCard,
   SupplyConfigCard,
+=======
+  CollabQueueCard,
+  RaffleCard,
+
   type FullConfig,
 } from "./cards";
 
@@ -147,7 +152,7 @@ function StateC({
         <hr className="chain-border flex-1" />
       </div>
 
-      {/* Cards */}
+      {/* Campaign config cards */}
       {loading || !config ? (
         <p className="pixel text-[7px] text-dim text-center">LOADING CONFIG...</p>
       ) : (
@@ -171,6 +176,17 @@ function StateC({
           <SupplyConfigCard initial={config.supply_config} />
         </div>
       )}
+
+      {/* Forge tools — always visible when admin */}
+      <div className="flex items-center gap-4 my-10">
+        <hr className="chain-border flex-1" />
+        <span className="pixel text-[7px] text-dim">FORGE TOOLS</span>
+        <hr className="chain-border flex-1" />
+      </div>
+      <div className="flex flex-col gap-6">
+        <CollabQueueCard />
+        <RaffleCard />
+      </div>
     </main>
   );
 }
