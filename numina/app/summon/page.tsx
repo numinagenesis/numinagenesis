@@ -101,6 +101,7 @@ export default function SummonPage() {
   const [output, setOutput] = useState("");
   const [taskErr, setTaskErr] = useState("");
   const [saving, setSaving] = useState(false);
+  const [savedOutput, setSavedOutput] = useState(false);
 
   // saveRef = full capture target (card + optional task panel)
   // taskPanelRef = hidden task output section, shown only during save
@@ -174,6 +175,28 @@ export default function SummonPage() {
         taskPanelRef.current.style.display = "none";
       }
       setSaving(false);
+    }
+  }
+
+  // ── SAVE OUTPUT: persist to localStorage for /forge history link ─────────────
+  function saveOutput() {
+    if (!agent || stage !== "done" || !output) return;
+    const entry = {
+      division: agent.division,
+      tier:     agent.tier,
+      tokenId:  agent.tokenId,
+      task:     task.trim(),
+      output,
+      savedAt:  new Date().toISOString(),
+    };
+    try {
+      const raw = localStorage.getItem("numina_saved_outputs");
+      const existing: typeof entry[] = raw ? JSON.parse(raw) : [];
+      const updated = [entry, ...existing].slice(0, 20);
+      localStorage.setItem("numina_saved_outputs", JSON.stringify(updated));
+      setSavedOutput(true);
+    } catch {
+      // localStorage unavailable — silently ignore
     }
   }
 
@@ -444,14 +467,30 @@ export default function SummonPage() {
             </div>
           )}
 
-          {/* Mint CTA */}
-          <div className="numina-card p-5 text-center"
+          {/* Save output */}
+          <div className="numina-card p-5 flex flex-col gap-3"
                style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)"}}>
-            <p className="pixel text-[9px] text-primary mb-2">MINT THIS AGENT</p>
-            <p className="mono text-[11px] text-muted mb-4">
-              Lock this soul forever. On Ethereum. Permanent.
+            <p className="pixel text-[9px] text-primary">SAVE OUTPUT</p>
+            <p className="mono text-[11px] text-muted">
+              Save this session to your forge history.
             </p>
-            <button className="btn-outline w-full" disabled style={{ opacity: 0.3, cursor: "not-allowed" }}>COMING SOON</button>
+            <button
+              onClick={saveOutput}
+              disabled={stage !== "done" || !output || savedOutput}
+              className={stage === "done" && output && !savedOutput ? "btn-amber w-full" : "btn-outline w-full"}
+              style={{ opacity: stage === "done" && output && !savedOutput ? 1 : 0.4, cursor: stage === "done" && output && !savedOutput ? "pointer" : "not-allowed" }}
+            >
+              {savedOutput ? "SAVED ✓" : "► SAVE OUTPUT"}
+            </button>
+            {savedOutput && (
+              <a
+                href="/forge"
+                className="mono text-[10px] text-dim text-center"
+                style={{ textDecoration: "none" }}
+              >
+                View full history → /forge
+              </a>
+            )}
           </div>
         </div>
       </div>

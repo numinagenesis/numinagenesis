@@ -83,11 +83,13 @@ numina/
         summon/route.ts            → POST /api/forge/summon  — create/return persistent agent
         status/route.ts            → GET  /api/forge/status  — fetch agent + fragment balance + tasks_today
         train/route.ts             → POST /api/forge/train   — run task, earn fragments, enforce daily limit
+        history/route.ts           → GET  /api/forge/history — last 20 training_tasks for wallet (desc)
 
   components/
     Nav.tsx                → sticky nav, mobile hamburger, active-link highlight
     ConnectAndSignIn.tsx   → self-contained SIWE auth widget, onSessionChange prop
-    AgentCard.tsx          → agent display card
+    AgentCard.tsx          → agent display card (fragmentId + soulHash optional extra rows)
+    TaskHistory.tsx        → forge history list + TaskModal; props: division, tier, refreshKey
     PixelAvatar.tsx        → pixel art avatar renderer
     Ticker.tsx             → scrolling ticker component
 
@@ -614,6 +616,7 @@ POST /api/admin/moderate         body: { id, action: "approve"|"reject", reason?
 POST /api/forge/summon       — create persistent agent (or return existing)
 GET  /api/forge/status       — fetch active agent + fragment balance + tasks_today
 POST /api/forge/train        — run LLM task, earn fragments, enforce 10/day limit
+GET  /api/forge/history      — last 20 training_tasks for signed-in wallet (desc)
 
 POST /api/summon-task
 GET  /api/factory-submissions
@@ -670,11 +673,12 @@ Stage 4   ✅  Leaderboard — public /leaderboard, stats grid, tier breakdown, 
 Stage 5   ✅  Moderation queue — /admin/queue, approve/reject, pending hold on points
 Forge F1  ✅  Agent persistence — /forge, pre_mint_agents, soul_fragments, fragment meter
 Forge F2  ✅  Training + fragments — /api/forge/train, training_tasks, 10/day limit, live meter
+Forge F3  ✅  Save + history — /api/forge/history, TaskHistory component, deploy/history tabs, summon save
 ```
 
 All stages targeting a single production launch (not shipped yet).
 Phase 1 v1 feature-complete — ready for pre-launch review.
-Last successful build: `npm run build` exits 0, 35 routes, no type errors.
+Last successful build: `npm run build` exits 0, 36 routes, no type errors.
 
 ---
 

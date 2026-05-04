@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import AgentCard from "@/components/AgentCard";
+import TaskHistory from "@/components/TaskHistory";
 import { DIVISIONS, TIERS, type DivisionKey, type TierKey } from "@/lib/divisions";
 import { WL_THRESHOLD, type PreMintAgent } from "@/lib/supabase-forge";
 
@@ -74,6 +75,10 @@ export default function ForgePage() {
   const [tasksToday,         setTasksToday]         = useState(0);
   const [lastFragsEarned,    setLastFragsEarned]    = useState<number | null>(null);
 
+  // tab state
+  const [activeTab,   setActiveTab]   = useState<"deploy" | "history">("deploy");
+  const [historyKey,  setHistoryKey]  = useState(0);
+
   // ── Session check + initial load ──────────────────────────────────────────
   const fetchStatus = useCallback(async () => {
     try {
@@ -134,6 +139,8 @@ export default function ForgePage() {
       setFragments(data.new_balance ?? fragments);
       setTasksToday(data.tasks_today ?? tasksToday + 1);
       setLastFragsEarned(data.fragments_earned ?? null);
+      setHistoryKey((k) => k + 1);
+      setActiveTab("history");
     } catch {
       setTrainError("Network error — try again");
     } finally {
@@ -216,10 +223,10 @@ export default function ForgePage() {
           />
         </div>
 
-        {/* ── Right: meter + task panel ─────────────────────────────────── */}
+        {/* ── Right: meter + tabs ───────────────────────────────────────── */}
         <div className="fade-up flex flex-col gap-5">
 
-          {/* Fragment meter */}
+          {/* Fragment meter — always visible */}
           <div className="numina-card bracketed p-5 flex flex-col gap-4">
             <div className="flex items-start justify-between">
               <div>
@@ -243,116 +250,151 @@ export default function ForgePage() {
             <FragmentMeter balance={fragments} />
           </div>
 
-          {/* Task input */}
-          <div className="numina-card bracketed p-5 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <p className="pixel text-[7px] text-dim">// DEPLOY TASK</p>
-              <span
-                className="mono text-[10px]"
-                style={{ color: atLimit ? "#FFFFFF" : "#666666" }}
+          {/* Tab bar */}
+          <div className="flex" style={{ borderBottom: "1px solid #222222" }}>
+            {(["deploy", "history"] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className="pixel text-[7px] px-5 py-2"
+                style={{
+                  background:   "transparent",
+                  border:       "none",
+                  borderBottom: activeTab === tab ? "2px solid #FFFFFF" : "2px solid transparent",
+                  color:        activeTab === tab ? "#FFFFFF" : "#666666",
+                  cursor:       "pointer",
+                  marginBottom: -1,
+                }}
               >
-                {tasksToday}/{DAILY_LIMIT} today
-              </span>
-            </div>
-
-            {div && tier && (
-              <p className="pixel text-[8px]" style={{ color: div.color }}>
-                {div.name.toUpperCase()} · {tier.name.toUpperCase()}
-              </p>
-            )}
-
-            <textarea
-              value={taskInput}
-              onChange={(e) => setTaskInput(e.target.value.slice(0, INPUT_MAX))}
-              disabled={running || atLimit}
-              rows={4}
-              maxLength={INPUT_MAX}
-              placeholder={
-                atLimit
-                  ? "Daily limit reached. Come back tomorrow."
-                  : div
-                  ? `What do you want your ${div.name} agent to do?`
-                  : "Enter a task..."
-              }
-              className="w-full mono text-sm px-3 py-2 outline-none resize-none"
-              style={{
-                background: "#080808",
-                border:     "1px solid #222222",
-                color:      "#FFFFFF",
-                opacity:    atLimit ? 0.4 : 1,
-              }}
-            />
-
-            <div className="flex justify-between items-center">
-              <span className="mono text-[10px] text-dim">{taskInput.length}/{INPUT_MAX}</span>
-              {trainError && (
-                <span className="mono text-[10px]" style={{ color: "#FFFFFF" }}>✗ {trainError}</span>
-              )}
-            </div>
-
-            <button
-              onClick={runTask}
-              disabled={!taskInput.trim() || running || atLimit}
-              className={atLimit ? "btn-outline w-full" : "btn-amber w-full"}
-              style={{ opacity: (!taskInput.trim() || atLimit) ? 0.4 : 1 }}
-            >
-              {running ? (
-                <span>AGENT WORKING<span className="blink">...</span></span>
-              ) : atLimit ? (
-                "DAILY LIMIT REACHED"
-              ) : (
-                "► RUN TASK"
-              )}
-            </button>
-          </div>
-
-          {/* Task output */}
-          {taskOutput && (
-            <div className="numina-card bracketed p-0 fade-up">
-              <div className="terminal-bar">
-                {["#333333", "#555555", "#777777"].map((c) => (
-                  <span
-                    key={c}
-                    style={{ width: 8, height: 8, borderRadius: "50%", background: c, display: "inline-block" }}
-                  />
-                ))}
-                <span className="mono text-[10px] text-dim ml-2">
-                  {div ? `numina_${div.name.toLowerCase().replace(/\s+/g, "_")}.out` : "output.out"}
-                </span>
-              </div>
-              <div
-                className="terminal"
-                style={{ maxHeight: 280, overflowY: "auto", color: "#FFFFFF", whiteSpace: "pre-wrap" }}
-              >
-                {taskOutput}
-              </div>
-              {lastFragsEarned !== null && (
-                <div
-                  className="px-4 py-2 flex justify-between items-center"
-                  style={{ borderTop: "1px solid #222222", background: "#080808" }}
-                >
-                  <span className="mono text-[10px] text-dim">FRAGMENTS EARNED</span>
-                  <span className="pixel text-[8px] text-primary">+{lastFragsEarned}</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Collapse data */}
-          <div className="numina-card bracketed p-4 flex flex-col gap-1.5">
-            <p className="pixel text-[7px] text-dim mb-1">// COLLAPSE DATA</p>
-            {[
-              ["FRAGMENT",   agent.fragment_id],
-              ["SOUL HASH",  agent.soul_hash.slice(0, 16) + "..."],
-              ["TASKS RUN",  String(agent.task_count ?? 0)],
-              ["STATUS",     "ACTIVE"],
-            ].map(([k, v]) => (
-              <div key={k} className="flex justify-between gap-4">
-                <span className="mono text-[10px] text-dim shrink-0">{k}</span>
-                <span className="mono text-[10px] text-primary text-right truncate">{v}</span>
-              </div>
+                {tab === "deploy" ? "// DEPLOY" : "// HISTORY"}
+              </button>
             ))}
           </div>
+
+          {/* ── DEPLOY tab ──────────────────────────────────────────────── */}
+          {activeTab === "deploy" && (
+            <>
+              {/* Task input */}
+              <div className="numina-card bracketed p-5 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <p className="pixel text-[7px] text-dim">// DEPLOY TASK</p>
+                  <span
+                    className="mono text-[10px]"
+                    style={{ color: atLimit ? "#FFFFFF" : "#666666" }}
+                  >
+                    {tasksToday}/{DAILY_LIMIT} today
+                  </span>
+                </div>
+
+                {div && tier && (
+                  <p className="pixel text-[8px]" style={{ color: div.color }}>
+                    {div.name.toUpperCase()} · {tier.name.toUpperCase()}
+                  </p>
+                )}
+
+                <textarea
+                  value={taskInput}
+                  onChange={(e) => setTaskInput(e.target.value.slice(0, INPUT_MAX))}
+                  disabled={running || atLimit}
+                  rows={4}
+                  maxLength={INPUT_MAX}
+                  placeholder={
+                    atLimit
+                      ? "Daily limit reached. Come back tomorrow."
+                      : div
+                      ? `What do you want your ${div.name} agent to do?`
+                      : "Enter a task..."
+                  }
+                  className="w-full mono text-sm px-3 py-2 outline-none resize-none"
+                  style={{
+                    background: "#080808",
+                    border:     "1px solid #222222",
+                    color:      "#FFFFFF",
+                    opacity:    atLimit ? 0.4 : 1,
+                  }}
+                />
+
+                <div className="flex justify-between items-center">
+                  <span className="mono text-[10px] text-dim">{taskInput.length}/{INPUT_MAX}</span>
+                  {trainError && (
+                    <span className="mono text-[10px]" style={{ color: "#FFFFFF" }}>✗ {trainError}</span>
+                  )}
+                </div>
+
+                <button
+                  onClick={runTask}
+                  disabled={!taskInput.trim() || running || atLimit}
+                  className={atLimit ? "btn-outline w-full" : "btn-amber w-full"}
+                  style={{ opacity: (!taskInput.trim() || atLimit) ? 0.4 : 1 }}
+                >
+                  {running ? (
+                    <span>AGENT WORKING<span className="blink">...</span></span>
+                  ) : atLimit ? (
+                    "DAILY LIMIT REACHED"
+                  ) : (
+                    "► RUN TASK"
+                  )}
+                </button>
+              </div>
+
+              {/* Task output */}
+              {taskOutput && (
+                <div className="numina-card bracketed p-0 fade-up">
+                  <div className="terminal-bar">
+                    {["#333333", "#555555", "#777777"].map((c) => (
+                      <span
+                        key={c}
+                        style={{ width: 8, height: 8, borderRadius: "50%", background: c, display: "inline-block" }}
+                      />
+                    ))}
+                    <span className="mono text-[10px] text-dim ml-2">
+                      {div ? `numina_${div.name.toLowerCase().replace(/\s+/g, "_")}.out` : "output.out"}
+                    </span>
+                  </div>
+                  <div
+                    className="terminal"
+                    style={{ maxHeight: 280, overflowY: "auto", color: "#FFFFFF", whiteSpace: "pre-wrap" }}
+                  >
+                    {taskOutput}
+                  </div>
+                  {lastFragsEarned !== null && (
+                    <div
+                      className="px-4 py-2 flex justify-between items-center"
+                      style={{ borderTop: "1px solid #222222", background: "#080808" }}
+                    >
+                      <span className="mono text-[10px] text-dim">FRAGMENTS EARNED</span>
+                      <span className="pixel text-[8px] text-primary">+{lastFragsEarned}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Collapse data */}
+              <div className="numina-card bracketed p-4 flex flex-col gap-1.5">
+                <p className="pixel text-[7px] text-dim mb-1">// COLLAPSE DATA</p>
+                {[
+                  ["FRAGMENT",   agent.fragment_id],
+                  ["SOUL HASH",  agent.soul_hash.slice(0, 16) + "..."],
+                  ["TASKS RUN",  String(agent.task_count ?? 0)],
+                  ["STATUS",     "ACTIVE"],
+                ].map(([k, v]) => (
+                  <div key={k} className="flex justify-between gap-4">
+                    <span className="mono text-[10px] text-dim shrink-0">{k}</span>
+                    <span className="mono text-[10px] text-primary text-right truncate">{v}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* ── HISTORY tab ─────────────────────────────────────────────── */}
+          {activeTab === "history" && (
+            <TaskHistory
+              division={agent.division as DivisionKey}
+              tier={agent.tier as TierKey}
+              refreshKey={historyKey}
+            />
+          )}
 
         </div>
       </div>
