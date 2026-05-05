@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
     .from("training_tasks")
     .insert({
       wallet,
-      task,
+      input: task,
       output,
       fragments_earned: fragments,
     });
