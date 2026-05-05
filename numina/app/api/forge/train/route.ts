@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/session-user";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { FRAGMENT_RATES } from "@/lib/fragment-rates";
 
-// Fragment reward per task by agent tier
-const FRAGMENT_RATES: Record<string, number> = {
-  BRONZE: 1,
-  SILVER: 2,
-  GOLD: 3,
-  DIAMOND: 5,
-};
-const DEFAULT_FRAGMENTS = 1;
+const DEFAULT_FRAGMENTS = 10;
 
 // Max tasks per wallet per day
 const DAILY_TASK_LIMIT = 10;
@@ -62,7 +56,7 @@ export async function POST(req: NextRequest) {
     .eq("wallet", wallet)
     .maybeSingle();
 
-  const tier = (agent?.tier as string | null) ?? "BRONZE";
+  const tier = (agent?.tier as string | null) ?? "RECRUIT";
   const fragments = FRAGMENT_RATES[tier] ?? DEFAULT_FRAGMENTS;
 
   // Generate task output (placeholder — replace with LLM call if needed)
