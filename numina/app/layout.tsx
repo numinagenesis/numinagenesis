@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Nav from "@/components/Nav";
 import { Providers } from "./providers";
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 export const metadata: Metadata = {
   title: "NUMINA — Every soul has a chain.",
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </p>
           </footer>
         </Providers>
+        <SpeedInsights />
       </body>
     </html>
   );
