@@ -1,5 +1,5 @@
 ﻿"use client";
-
+import Link from "next/link"
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import AgentCard from "@/components/AgentCard";
@@ -269,7 +269,10 @@ export default function ForgePage() {
       setHistoryKey((k) => k + 1);
       setActiveTab("history");
     } catch {
+
       setTrainError("Network error ÔÇö try again");
+
+
     } finally {
       setRunning(false);
     }
@@ -376,6 +379,7 @@ export default function ForgePage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
 
+
         {/* ÔöÇÔöÇ Left: Agent card ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ */}
         <div className="fade-up">
           <AgentCard
@@ -388,6 +392,36 @@ export default function ForgePage() {
             fragmentId={agent.fragment_id}
             soulHash={agent.soul_hash}
           />
+=======
+          <div className="flex flex-col gap-3">
+            <div
+              style={{
+                background: "#080808",
+                border: "1px solid #1c1c1c",
+                padding: "16px",
+                textAlign: "center",
+              }}
+            >
+              <p className="pixel text-[7px]" style={{ color: "#333333" }}>
+                BURN - COMING SOON
+              </p>
+            </div>
+
+            <Link
+              href="/forge/swap"
+              className="mono text-xs"
+              style={{
+                color: "#555555",
+                textDecoration: "none",
+                display: "block",
+                textAlign: "center",
+                paddingTop: 8,
+              }}
+            >
+              &#8644; SWAP MARKETPLACE
+            </Link>
+          </div>
+
         </div>
 
         {/* ÔöÇÔöÇ Right: meter + tabs ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ */}
