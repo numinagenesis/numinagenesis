@@ -65,13 +65,14 @@ export async function POST(req: NextRequest) {
   // Insert training task
   const { error: insertError } = await supabaseAdmin
     .from("training_tasks")
+
     .insert({
       wallet,
       input: task,
       output,
       fragments_earned: fragments,
+      task_hash: Buffer.from(task + output).toString('base64').slice(0, 64),
     });
-
   if (insertError) {
     console.error("[forge/train] insert training_task", insertError);
     return NextResponse.json(
