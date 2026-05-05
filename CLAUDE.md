@@ -828,3 +828,25 @@ Sections most likely to need updates per task type:
 - New error code → add to Submission validation pipeline
 - New hard rule or bug fixed → add row to Gotchas table
 - Build route count changes → update "Last successful build" line
+
+## training_tasks column names (CRITICAL)
+Column is `input` NOT `task`. Always use `input` when inserting.
+  wallet: text
+  agent_id: uuid FK
+  input: text        ← NOT "task"
+  output: text
+  fragments_earned: int
+  task_hash: text
+  created_at: timestamptz
+
+## soul_fragments column names
+  wallet: text (always lowercase)
+  total_earned: int
+  current_balance: int
+  wl_status: text
+  updated_at: timestamptz
+
+## WALLET CASING RULE
+Always lowercase wallet addresses before any DB read or write.
+  const wallet = address.toLowerCase()
+Never store or query mixed case wallet addresses.
