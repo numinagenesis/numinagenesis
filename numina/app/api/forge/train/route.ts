@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/session-user";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { FRAGMENT_RATES } from "@/lib/fragment-rates";
@@ -8,7 +8,7 @@ const DEFAULT_FRAGMENTS = 10;
 // Max tasks per wallet per day
 const DAILY_TASK_LIMIT = 10;
 
-// ÔöÇÔöÇ POST /api/forge/train ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── POST /api/forge/train ─────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   const auth = await requireUser();
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   let task: string;
   try {
     const body = await req.json();
-    task = typeof body.task === "string" ? body.task.trim() : "";
+    task = typeof body.input === "string" ? body.input.trim() : "";
   } catch {
     return NextResponse.json({ code: "invalid_body" }, { status: 400 });
   }
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Rate limit ÔÇö count today's tasks
+  // Rate limit — count today's tasks
   const todayStart = new Date();
   todayStart.setUTCHours(0, 0, 0, 0);
 
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
   const tier = (agent?.tier as string | null) ?? "RECRUIT";
   const fragments = FRAGMENT_RATES[tier] ?? DEFAULT_FRAGMENTS;
 
-  // Generate task output (placeholder ÔÇö replace with LLM call if needed)
+  // Generate task output (placeholder — replace with LLM call if needed)
   const output = `[AGENT TASK LOG]\nWallet: ${wallet.slice(0, 8)}...\nTier: ${tier}\nTask: ${task}\n\nProcessing complete. Neural pathways updated. Fragment yield nominal.`;
 
   // Insert training task

@@ -1,43 +1,43 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/session-user";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
-export async function GET(_req: NextRequest) {
+// ── GET /api/forge/status ─────────────────────────────────────────────────────
+
+export async function GET() {
   const auth = await requireUser();
   if (!auth.ok) {
-    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+    return NextResponse.json({ code: "unauthorized" }, { status: 401 });
   }
-  const wallet = auth.address;
+  const wallet = auth.address.toLowerCase();
 
-  const startOfToday = new Date();
-  startOfToday.setUTCHours(0, 0, 0, 0);
+  // Agent
+  const { data: agent } = await supabaseAdmin
+    .from("pre_mint_agents")
+    .select("*")
+    .eq("wallet", wallet)
+    .maybeSingle();
 
-  const [{ data: agent }, { data: fragRow }, { count: rawCount }] = await Promise.all([
-    supabaseAdmin
-      .from("pre_mint_agents")
-      .select("*")
-      .eq("wallet", wallet)
-      .eq("is_active", true)
-      .maybeSingle(),
-    supabaseAdmin
-      .from("soul_fragments")
-      .select("balance")
-      .eq("wallet", wallet)
-      .maybeSingle(),
-    supabaseAdmin
-      .from("training_tasks")
-      .select("*", { count: "exact", head: true })
-      .eq("wallet", wallet)
-      .gte("created_at", startOfToday.toISOString()),
-  ]);
+  // Fragment balance
+  const { data: fragmentRow } = await supabaseAdmin
+    .from("soul_fragments")
+    .select("current_balance")
+    .eq("wallet", wallet)
+    .maybeSingle();
 
-  if (!agent) {
-    return NextResponse.json({ agent: null, fragments: 0, tasks_today: 0 });
-  }
+  // Tasks today
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+
+  const { count: tasksToday } = await supabaseAdmin
+    .from("training_tasks")
+    .select("id", { count: "exact", head: true })
+    .eq("wallet", wallet)
+    .gte("created_at", todayStart.toISOString());
 
   return NextResponse.json({
-    agent,
-    fragments:   fragRow?.balance ?? 0,
-    tasks_today: rawCount ?? 0,
+    agent: agent ?? null,
+    fragments: fragmentRow?.current_balance ?? 0,
+    tasks_today: tasksToday ?? 0,
   });
 }
