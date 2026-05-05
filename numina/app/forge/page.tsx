@@ -5,6 +5,147 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ConnectAndSignIn } from "@/components/ConnectAndSignIn";
 
+// ── Train card ─────────────────────────────────────────────────────────────────
+
+type TrainResult = {
+  output: string;
+  fragments_earned: number;
+  new_balance: number;
+  tasks_today: number;
+};
+
+function TrainCard() {
+  const [taskInput, setTaskInput] = useState("");
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<TrainResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function runTask() {
+    if (!taskInput.trim() || running) return;
+    setRunning(true);
+    setResult(null);
+    setError(null);
+    try {
+      const res = await fetch("/api/forge/train", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ task: taskInput.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.message ?? data.error ?? "Task failed");
+      } else {
+        setResult(data as TrainResult);
+      }
+    } catch {
+      setError("Network error — please try again");
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <div className="numina-card bracketed" style={{ padding: "28px", background: "#040404" }}>
+      <p className="pixel text-[7px] text-dim mb-5">// RUN TASK</p>
+      <p className="mono text-sm mb-5" style={{ color: "#555555" }}>
+        Train your agent. Earn soul fragments.
+      </p>
+
+      {/* Textarea */}
+      <textarea
+        value={taskInput}
+        onChange={(e) => setTaskInput(e.target.value)}
+        disabled={running}
+        placeholder="Describe your task..."
+        rows={4}
+        style={{
+          width: "100%",
+          background: "#080808",
+          border: "1px solid #1c1c1c",
+          color: "#FFFFFF",
+          padding: "12px",
+          fontFamily: "Courier New, Courier, monospace",
+          fontSize: 12,
+          resize: "vertical",
+          outline: "none",
+          marginBottom: 12,
+          boxSizing: "border-box",
+        }}
+      />
+
+      <button
+        onClick={runTask}
+        disabled={running || !taskInput.trim()}
+        className="btn-amber pixel text-[7px]"
+        style={{ width: "100%", minHeight: 40 }}
+      >
+        {running ? "RUNNING..." : "RUN TASK"}
+      </button>
+
+      {/* Error */}
+      {error && (
+        <p className="mono text-xs mt-4" style={{ color: "#FF4444" }}>
+          {error}
+        </p>
+      )}
+
+      {/* Output */}
+      {result && (
+        <div style={{ marginTop: 16 }}>
+          {/* Fragment badge */}
+          <div className="flex items-center justify-between mb-3">
+            <p className="pixel text-[7px] text-dim">// TASK OUTPUT</p>
+            <span
+              className="pixel text-[7px]"
+              style={{
+                color: "#44aa44",
+                background: "#081408",
+                border: "1px solid #1a3a1a",
+                padding: "3px 8px",
+              }}
+            >
+              +{result.fragments_earned} SOUL FRAGMENTS
+            </span>
+          </div>
+
+          {/* Output box */}
+          <div
+            className="numina-card bracketed"
+            style={{
+              background: "#020202",
+              padding: "16px",
+              border: "1px solid #1a1a1a",
+            }}
+          >
+            <pre
+              style={{
+                fontFamily: "Courier New, Courier, monospace",
+                fontSize: 12,
+                color: "#CCCCCC",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+                margin: 0,
+              }}
+            >
+              {result.output}
+            </pre>
+          </div>
+
+          {/* Balance row */}
+          <div className="flex items-center justify-between mt-3">
+            <p className="mono text-xs" style={{ color: "#444444" }}>
+              balance: {result.new_balance} fragments
+            </p>
+            <p className="mono text-xs" style={{ color: "#333333" }}>
+              tasks today: {result.tasks_today}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ForgePage() {
   const router = useRouter();
   const [sessionAddr, setSessionAddr] = useState<string | null>(null);
@@ -152,6 +293,11 @@ export default function ForgePage() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Train section */}
+      <div className="mt-8">
+        <TrainCard />
       </div>
     </main>
   );
