@@ -178,20 +178,17 @@ export default function ForgePage() {
     return (
       <main className="flex flex-col items-center justify-center min-h-[70vh] px-6 text-center gap-6">
         <p className="pixel text-[7px] text-dim">// THE FORGE</p>
-        <h1 className="pixel glitch" style={{ fontSize: "clamp(20px,4vw,36px)", color: "#FFFFFF" }}>
-          FORGE
-        </h1>
-        <p className="mono text-xs" style={{ color: "#444444", maxWidth: 320 }}>
-          Connect your wallet to access the pre-mint agent utility layer.
+        <p className="pixel text-[9px]" style={{ color: "#FFFFFF", letterSpacing: "0.1em" }}>
+          CONNECT WALLET TO ACCESS THE FORGE
         </p>
         <ConnectAndSignIn onSessionChange={handleSession} />
-        <button
-          onClick={() => router.push("/")}
+        <Link
+          href="/"
           className="mono text-xs"
-          style={{ color: "#333333", background: "none", border: "none", cursor: "pointer", marginTop: 8 }}
+          style={{ color: "#333333" }}
         >
           ← back to home
-        </button>
+        </Link>
       </main>
     );
   }
