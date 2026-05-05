@@ -76,7 +76,7 @@ function BurnModal({
             className="mono text-[10px] text-dim"
             style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 6px" }}
           >
-            Ô£ò CLOSE
+            x CLOSE
           </button>
         </div>
 
@@ -88,7 +88,7 @@ function BurnModal({
 
           <div className="flex flex-col gap-1.5">
             {([
-              ["CURRENT AGENT",    `${div?.name.toUpperCase() ?? "?"} ┬À ${tier?.name.toUpperCase() ?? "?"}`],
+              ["CURRENT AGENT",    `${div?.name.toUpperCase() ?? "?"} · ${tier?.name.toUpperCase() ?? "?"}`],
               ["CURRENT BALANCE",  `${fragments} fragments`],
               ["CARRY OVER (50%)", `${carryOver} fragments`],
               ["FORFEIT (50%)",    `${forfeit} fragments`],
@@ -106,7 +106,7 @@ function BurnModal({
           </div>
 
           {burnError && (
-            <p className="mono text-[10px] text-center" style={{ color: "#FF4444" }}>Ô£ù {burnError}</p>
+            <p className="mono text-[10px] text-center" style={{ color: "#FF4444" }}>x {burnError}</p>
           )}
 
           <div className="flex gap-3">
@@ -133,7 +133,7 @@ function BurnModal({
                 opacity:     burning ? 0.6 : 1,
               }}
             >
-              {burning ? <span>BURNING<span className="blink">...</span></span> : "Ôûá CONFIRM BURN"}
+              {burning ? <span>BURNING<span className="blink">...</span></span> : "&gt; CONFIRM BURN"}
             </button>
           </div>
         </div>
@@ -251,7 +251,7 @@ export default function ForgePage() {
       setAgent(data.agent);
       setFragments(data.fragments ?? 0);
     } catch {
-      setSummonError("Network error ÔÇö try again");
+      setSummonError("Network error - try again");
     } finally {
       setSummoning(false);
     }
@@ -278,7 +278,7 @@ export default function ForgePage() {
       setHistoryKey((k) => k + 1);
       setActiveTab("history");
     } catch {
-      setTrainError("Network error ÔÇö try again");
+      setTrainError("Network error - try again");
     } finally {
       setRunning(false);
     }
@@ -297,7 +297,7 @@ export default function ForgePage() {
         return;
       }
       if (!res.ok) { setBurnError(data.error ?? "Burn failed"); return; }
-      // Success ÔÇö replace agent state without full page reload
+      // Success - replace agent state without full page reload
       setBurnModal(false);
       setAgent(data.new_agent);
       setFragments(data.carried_fragments ?? 0);
@@ -307,7 +307,7 @@ export default function ForgePage() {
       setActiveTab("deploy");
       setBurnCooldownNext(null);
     } catch {
-      setBurnError("Network error ÔÇö try again");
+      setBurnError("Network error - try again");
     } finally {
       setBurning(false);
     }
@@ -346,7 +346,7 @@ export default function ForgePage() {
       <main className="min-h-screen flex flex-col items-center justify-center px-6 py-20 text-center">
         <div className="flex flex-col items-center gap-8 max-w-md w-full">
           <div className="scanlines p-6" style={{ background: "#080808", border: "1px solid #222222" }}>
-            <div className="glitch-fast" style={{ fontSize: 72, color: "#FFFFFF", lineHeight: 1 }}>Ôùê</div>
+            <div className="glitch-fast" style={{ fontSize: 72, color: "#FFFFFF", lineHeight: 1 }}>◆</div>
           </div>
           <div>
             <p className="pixel text-[7px] text-dim mb-3">// THE FORGE</p>
@@ -363,10 +363,10 @@ export default function ForgePage() {
             className="btn-amber pulse-amber w-full"
             style={{ fontSize: 11, padding: "16px 32px" }}
           >
-            {summoning ? "COLLAPSING..." : "Ôû║ SUMMON AGENT"}
+            {summoning ? "COLLAPSING..." : "&gt; SUMMON AGENT"}
           </button>
           {summonError && (
-            <p className="mono text-xs" style={{ color: "#FFFFFF" }}>Ô£ù {summonError}</p>
+            <p className="mono text-xs" style={{ color: "#FFFFFF" }}>x {summonError}</p>
           )}
           <p className="mono text-[11px] text-dim">
             Earn soul fragments by completing tasks.<br />500 fragments = guaranteed WL.
@@ -431,14 +431,14 @@ export default function ForgePage() {
         {/* ÔöÇÔöÇ Right: meter + tabs ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ */}
         <div className="fade-up flex flex-col gap-5">
 
-          {/* Fragment meter ÔÇö always visible */}
+          {/* Fragment meter - always visible */}
           <div className="numina-card bracketed p-5 flex flex-col gap-4">
             <div className="flex items-start justify-between">
               <div>
                 <p className="pixel text-[7px] text-dim mb-1">// SOUL FRAGMENT</p>
                 {div && tier && (
                   <p className="pixel text-[9px]" style={{ color: div.color }}>
-                    {div.name.toUpperCase()} ┬À {tier.name.toUpperCase()}
+                    {div.name.toUpperCase()} · {tier.name.toUpperCase()}
                   </p>
                 )}
               </div>
@@ -470,7 +470,7 @@ export default function ForgePage() {
                 opacity:    (!!burnCooldownNext && new Date(burnCooldownNext).getTime() > Date.now()) ? 0.4 : 1,
               }}
             >
-              Ôèù BURN AGENT
+              x BURN AGENT
             </button>
             <a
               href="/forge/swap"
@@ -524,7 +524,7 @@ export default function ForgePage() {
 
                 {div && tier && (
                   <p className="pixel text-[8px]" style={{ color: div.color }}>
-                    {div.name.toUpperCase()} ┬À {tier.name.toUpperCase()}
+                    {div.name.toUpperCase()} · {tier.name.toUpperCase()}
                   </p>
                 )}
 
@@ -553,7 +553,7 @@ export default function ForgePage() {
                 <div className="flex justify-between items-center">
                   <span className="mono text-[10px] text-dim">{taskInput.length}/{INPUT_MAX}</span>
                   {trainError && (
-                    <span className="mono text-[10px]" style={{ color: "#FFFFFF" }}>Ô£ù {trainError}</span>
+                    <span className="mono text-[10px]" style={{ color: "#FFFFFF" }}>x {trainError}</span>
                   )}
                 </div>
 
@@ -568,7 +568,7 @@ export default function ForgePage() {
                   ) : atLimit ? (
                     "DAILY LIMIT REACHED"
                   ) : (
-                    "Ôû║ RUN TASK"
+                    "&gt; RUN TASK"
                   )}
                 </button>
               </div>
