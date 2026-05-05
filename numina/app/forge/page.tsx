@@ -38,7 +38,7 @@ function TrainCard() {
         setResult(data as TrainResult);
       }
     } catch {
-      setError("Network error — please try again");
+      setError("Network error - please try again");
     } finally {
       setRunning(false);
     }
@@ -218,7 +218,7 @@ export default function ForgePage() {
               }}
             >
               <p className="pixel text-[7px]" style={{ color: "#333333" }}>
-                BURN — COMING SOON
+                BURN - COMING SOON
               </p>
             </div>
 
