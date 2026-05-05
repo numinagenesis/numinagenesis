@@ -94,9 +94,10 @@ export async function POST(req: NextRequest) {
     .from("training_tasks")
     .insert({
       wallet,
-      task,
+      input: task,
       output,
       fragments_earned: fragments,
+      task_hash: Buffer.from(task + output).toString("base64").slice(0, 64),
     });
 
   if (insertError) {
