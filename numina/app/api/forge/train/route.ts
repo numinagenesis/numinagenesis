@@ -49,30 +49,56 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Get agent tier for this wallet
+  // Get agent division + tier for this wallet
   const { data: agent } = await supabaseAdmin
     .from("pre_mint_agents")
-    .select("tier")
+    .select("tier, division")
     .eq("wallet", wallet)
     .maybeSingle();
 
-  const tier = (agent?.tier as string | null) ?? "RECRUIT";
+  const tier     = (agent?.tier     as string | null) ?? "RECRUIT";
+  const division = (agent?.division as string | null) ?? "UNKNOWN";
   const fragments = FRAGMENT_RATES[tier] ?? DEFAULT_FRAGMENTS;
 
-  // Generate task output (placeholder — replace with LLM call if needed)
-  const output = `[AGENT TASK LOG]\nWallet: ${wallet.slice(0, 8)}...\nTier: ${tier}\nTask: ${task}\n\nProcessing complete. Neural pathways updated. Fragment yield nominal.`;
+  // OpenRouter LLM call
+  let output: string;
+  try {
+    const systemPrompt = `You are a NUMINA agent. Division: ${division.toUpperCase()}. Tier: ${tier.toUpperCase()}. CC0 - everything you produce belongs to the world.\nBe direct. Deliver real, usable output. No fluff. No disclaimers. No preamble.`;
+
+    const llmRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type":  "application/json",
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "HTTP-Referer":  "https://numinagenesis.vercel.app",
+        "X-Title":       "NUMINA Forge",
+      },
+      body: JSON.stringify({
+        model:      "openrouter/auto",
+        max_tokens: 500,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user",   content: task },
+        ],
+      }),
+    });
+
+    const llmData = await llmRes.json();
+    output = llmData.choices?.[0]?.message?.content ?? "[No output returned]";
+  } catch {
+    output = "[Agent task logged. LLM unavailable - try again.]";
+  }
 
   // Insert training task
   const { error: insertError } = await supabaseAdmin
     .from("training_tasks")
-
     .insert({
       wallet,
-      input: task,
+      task,
       output,
       fragments_earned: fragments,
-      task_hash: Buffer.from(task + output).toString('base64').slice(0, 64),
     });
+
   if (insertError) {
     console.error("[forge/train] insert training_task", insertError);
     return NextResponse.json(
