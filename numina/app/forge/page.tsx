@@ -329,7 +329,7 @@ export default function ForgePage() {
         <p className="pixel text-[9px]" style={{ color: "#FFFFFF", letterSpacing: "0.1em" }}>
           CONNECT WALLET TO ACCESS THE FORGE
         </p>
-        <ConnectAndSignIn onSessionChange={() => window.location.reload()} />
+        <ConnectAndSignIn onSessionChange={(addr) => { if (addr) window.location.reload(); }} />
         <a href="/" className="mono text-xs" style={{ color: "#333333" }}>
           back to home
         </a>
