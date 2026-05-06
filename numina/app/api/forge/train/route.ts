@@ -108,6 +108,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Increment task_count on agent
+  const { error: taskCountError } = await supabaseAdmin.rpc("increment_task_count", {
+    p_wallet: wallet,
+  });
+  if (taskCountError) {
+    console.error("[forge/train] increment_task_count rpc", taskCountError);
+    // Non-fatal
+  }
+
   // Upsert soul_fragments via RPC to safely increment existing balance
   const { error: rpcError } = await supabaseAdmin.rpc("increment_fragments", {
     p_wallet: wallet,
