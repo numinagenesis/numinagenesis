@@ -26,7 +26,7 @@ type StatRow = {
 
 type FragRow = {
   wallet: string;
-  balance: number;
+  current_balance: number;
 };
 
 type AgentRow = {
@@ -82,7 +82,7 @@ const TH: CSSProperties = {
 
 function TabBar({ active }: { active: "points" | "fragments" }) {
   const tabs = [
-    { key: "fragments", label: "// FRAGMENTS", href: "/leaderboard"           },
+    { key: "fragments", label: "// FRAGMENTS", href: "/leaderboard"            },
     { key: "points",    label: "// POINTS",    href: "/leaderboard?tab=points" },
   ] as const;
 
@@ -265,7 +265,7 @@ export default async function LeaderboardPage({
                         <td className="hidden sm:table-cell" style={{ padding: "10px 12px", verticalAlign: "middle" }}>
                           {wallet.bound_x_handle
                             ? <span className="mono text-xs" style={{ color: "#555555" }}>@{wallet.bound_x_handle}</span>
-                            : <span className="mono text-xs" style={{ color: "#252525" }}>—</span>}
+                            : <span className="mono text-xs" style={{ color: "#252525" }}>-</span>}
                         </td>
                         <td className="hidden sm:table-cell" style={{ padding: "10px 12px", verticalAlign: "middle", textAlign: "right" }}>
                           <span className="mono text-xs" style={{ color: "#444444" }}>
@@ -275,7 +275,7 @@ export default async function LeaderboardPage({
                         <td className="hidden sm:table-cell" style={{ padding: "10px 12px", verticalAlign: "middle" }}>
                           {tier
                             ? <span className="pixel" style={{ fontSize: 7, color: tierColor(tier.name) }}>{tier.name.toUpperCase()}</span>
-                            : <span className="mono text-xs" style={{ color: "#252525" }}>—</span>}
+                            : <span className="mono text-xs" style={{ color: "#252525" }}>-</span>}
                         </td>
                         <td style={{ padding: "10px 12px", verticalAlign: "middle", textAlign: "right" }}>
                           <span className="pixel" style={{ fontSize: isTop3 ? 11 : 9, color: pointColor }}>
@@ -300,36 +300,35 @@ export default async function LeaderboardPage({
   // ── FRAGMENTS tab (default) ───────────────────────────────────────────────
 
   const [fragAllResult, fragTopResult] = await Promise.all([
-    supabase.from("soul_fragments").select("wallet, balance"),
+    supabase.from("soul_fragments").select("wallet, current_balance"),
     supabase
       .from("soul_fragments")
-      .select("wallet, balance")
-      .order("balance", { ascending: false })
+      .select("wallet, current_balance")
+      .order("current_balance", { ascending: false })
       .limit(100),
   ]);
 
   const fragAll = (fragAllResult.data ?? []) as FragRow[];
   const fragTop = (fragTopResult.data ?? []) as FragRow[];
 
-  // Fetch active agents for top 100 wallets to get division + tier
+  // Fetch agents for top 100 wallets (case-insensitive via lowercased wallet)
   let agents: AgentRow[] = [];
-  const topWalletAddrs = fragTop.map(r => r.wallet);
+  const topWalletAddrs = fragTop.map(r => r.wallet.toLowerCase());
   if (topWalletAddrs.length > 0) {
     const { data } = await supabase
       .from("pre_mint_agents")
       .select("wallet, division, tier")
-      .in("wallet", topWalletAddrs)
-      .eq("is_active", true);
+      .in("wallet", topWalletAddrs);
     agents = (data ?? []) as AgentRow[];
   }
 
-  const agentMap = new Map(agents.map(a => [a.wallet, a]));
+  const agentMap = new Map(agents.map(a => [a.wallet.toLowerCase(), a]));
 
   // Aggregate stats
-  const totalParticipants = fragAll.filter(r => (r.balance ?? 0) > 0).length;
-  const totalFragments    = fragAll.reduce((s, r) => s + (r.balance ?? 0), 0);
-  const walletsQualified  = fragAll.filter(r => (r.balance ?? 0) >= WL_THRESHOLD).length;
-  const walletsGuaranteed = fragAll.filter(r => (r.balance ?? 0) >= WL_THRESHOLD * 2).length;
+  const totalParticipants = fragAll.filter(r => (r.current_balance ?? 0) > 0).length;
+  const totalFragments    = fragAll.reduce((s, r) => s + (r.current_balance ?? 0), 0);
+  const walletsQualified  = fragAll.filter(r => (r.current_balance ?? 0) >= WL_THRESHOLD).length;
+  const walletsGuaranteed = fragAll.filter(r => (r.current_balance ?? 0) >= WL_THRESHOLD * 2).length;
 
   const FRAG_STATS = [
     { label: "PARTICIPANTS", value: totalParticipants.toLocaleString()  },
@@ -362,7 +361,7 @@ export default async function LeaderboardPage({
 
       <div className="flex items-center gap-4 mb-6">
         <hr className="chain-border flex-1" />
-        <span className="pixel text-[7px] text-dim">TOP 100 — WL ZONE</span>
+        <span className="pixel text-[7px] text-dim">TOP 100 - WL ZONE</span>
         <hr className="chain-border flex-1" />
       </div>
 
@@ -402,10 +401,10 @@ export default async function LeaderboardPage({
                   const rank      = i + 1;
                   const isTop3    = rank <= 3;
                   const inWLZone  = rank <= 50;
-                  const agent     = agentMap.get(row.wallet);
+                  const agent     = agentMap.get(row.wallet.toLowerCase());
                   const div       = agent ? DIVISIONS[agent.division as DivisionKey] : null;
                   const agentTier = agent ? TIERS[agent.tier as TierKey]             : null;
-                  const { label: wlLabel, color: wlColor } = wlStatus(row.balance ?? 0);
+                  const { label: wlLabel, color: wlColor } = wlStatus(row.current_balance ?? 0);
 
                   const rankColor = rank === 1 ? "#FFFFFF" : rank === 2 ? "#aaaaaa" : rank === 3 ? "#777777" : "#444444";
                   const addrColor = isTop3 ? "#cccccc" : inWLZone ? "#888888" : "#555555";
@@ -420,12 +419,9 @@ export default async function LeaderboardPage({
                         background:   inWLZone ? "rgba(255,255,255,0.015)" : "transparent",
                       }}
                     >
-                      {/* Rank */}
                       <td style={{ padding: "10px 12px", verticalAlign: "middle" }}>
                         <span className="pixel" style={{ color: rankColor, fontSize: isTop3 ? 13 : 9 }}>{rank}</span>
                       </td>
-
-                      {/* Wallet + mobile division */}
                       <td style={{ padding: "10px 12px", verticalAlign: "middle" }}>
                         <div className="flex flex-col" style={{ gap: 2 }}>
                           <span className="mono text-xs" style={{ color: addrColor }}>
@@ -438,38 +434,27 @@ export default async function LeaderboardPage({
                           )}
                         </div>
                       </td>
-
-                      {/* Division — desktop */}
                       <td className="hidden sm:table-cell" style={{ padding: "10px 12px", verticalAlign: "middle" }}>
                         {div
                           ? <span className="pixel" style={{ fontSize: 7, color: div.color }}>{div.name.toUpperCase()}</span>
-                          : <span className="mono text-xs" style={{ color: "#252525" }}>—</span>}
+                          : <span className="mono text-xs" style={{ color: "#252525" }}>-</span>}
                       </td>
-
-                      {/* Tier — desktop */}
                       <td className="hidden sm:table-cell" style={{ padding: "10px 12px", verticalAlign: "middle" }}>
                         {agentTier
                           ? <span className="pixel" style={{ fontSize: 7, color: "#666666" }}>{agentTier.name.toUpperCase()}</span>
-                          : <span className="mono text-xs" style={{ color: "#252525" }}>—</span>}
+                          : <span className="mono text-xs" style={{ color: "#252525" }}>-</span>}
                       </td>
-
-                      {/* Fragments */}
                       <td style={{ padding: "10px 12px", verticalAlign: "middle", textAlign: "right" }}>
                         <div className="flex flex-col items-end" style={{ gap: 1 }}>
                           <span className="pixel" style={{ fontSize: isTop3 ? 11 : 9, color: fragColor }}>
-                            {(row.balance ?? 0).toLocaleString()}
+                            {(row.current_balance ?? 0).toLocaleString()}
                           </span>
                           <span className="mono" style={{ fontSize: 8, color: "#2a2a2a" }}>
                             / {WL_THRESHOLD}
                           </span>
                         </div>
                       </td>
-
-                      {/* WL status — desktop */}
-                      <td
-                        className="hidden sm:table-cell"
-                        style={{ padding: "10px 12px", verticalAlign: "middle", textAlign: "right" }}
-                      >
+                      <td className="hidden sm:table-cell" style={{ padding: "10px 12px", verticalAlign: "middle", textAlign: "right" }}>
                         <span className="pixel" style={{ fontSize: 7, color: wlColor }}>● {wlLabel}</span>
                       </td>
                     </tr>
