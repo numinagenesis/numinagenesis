@@ -219,6 +219,7 @@ export default function ForgePage() {
         setAgent(data.agent ?? null);
         setFragments(data.fragments ?? 0);
         setTasksToday(data.tasks_today ?? 0);
+        setBurnCooldownNext(data.next_burn_at ?? null);
       }
     } finally {
       setLoadState("ready");

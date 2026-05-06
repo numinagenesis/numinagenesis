@@ -25,9 +25,18 @@ export async function POST() {
     return NextResponse.json({ error: "No agent found for this wallet" }, { status: 404 });
   }
 
-  // Check burn cooldown
-  if (agent.burned_at) {
-    const nextBurn = new Date(agent.burned_at);
+  // Check burn cooldown — query most recent burned_at across all rows for wallet
+  const { data: lastBurnRow } = await supabaseAdmin
+    .from("pre_mint_agents")
+    .select("burned_at")
+    .eq("wallet", wallet)
+    .not("burned_at", "is", null)
+    .order("burned_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (lastBurnRow?.burned_at) {
+    const nextBurn = new Date(lastBurnRow.burned_at);
     nextBurn.setHours(nextBurn.getHours() + BURN_COOLDOWN_HOURS);
     if (nextBurn > new Date()) {
       return NextResponse.json(

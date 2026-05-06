@@ -35,9 +35,27 @@ export async function GET() {
     .eq("wallet", wallet)
     .gte("created_at", todayStart.toISOString());
 
+  // Burn cooldown — most recent burned_at across all agent rows
+  const { data: lastBurnRow } = await supabaseAdmin
+    .from("pre_mint_agents")
+    .select("burned_at")
+    .eq("wallet", wallet)
+    .not("burned_at", "is", null)
+    .order("burned_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  let nextBurnAt: string | null = null;
+  if (lastBurnRow?.burned_at) {
+    const next = new Date(lastBurnRow.burned_at);
+    next.setHours(next.getHours() + 24);
+    if (next > new Date()) nextBurnAt = next.toISOString();
+  }
+
   return NextResponse.json({
-    agent: agent ?? null,
-    fragments: fragmentRow?.current_balance ?? 0,
-    tasks_today: tasksToday ?? 0,
+    agent:        agent ?? null,
+    fragments:    fragmentRow?.current_balance ?? 0,
+    tasks_today:  tasksToday ?? 0,
+    next_burn_at: nextBurnAt,
   });
 }
