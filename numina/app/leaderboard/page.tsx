@@ -3,7 +3,7 @@ export const revalidate = 0;
 
 import type { CSSProperties } from "react";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { calculateTier, type TierConfig } from "@/lib/tier-calc";
 import { DIVISIONS, TIERS, type DivisionKey, type TierKey } from "@/lib/divisions";
 import { WL_THRESHOLD } from "@/lib/supabase-forge";
@@ -53,7 +53,7 @@ function tierColor(name: string): string {
 }
 
 async function getConfigValue<T>(key: string, fallback: T): Promise<T> {
-  const { data } = await supabase
+  const { data } = await supabaseAdmin
     .from("config")
     .select("value")
     .eq("key", key)
@@ -120,8 +120,8 @@ export default async function LeaderboardPage({
 
   if (activeTab === "points") {
     const [statsResult, tableResult, tiers] = await Promise.all([
-      supabase.from("wallets").select("total_points, submission_count, bound_x_id").eq("banned", false),
-      supabase
+      supabaseAdmin.from("wallets").select("total_points, submission_count, bound_x_id").eq("banned", false),
+      supabaseAdmin
         .from("wallets")
         .select("address, total_points, submission_count, bound_x_handle, first_seen_at")
         .eq("banned", false)
@@ -300,8 +300,8 @@ export default async function LeaderboardPage({
   // ── FRAGMENTS tab (default) ───────────────────────────────────────────────
 
   const [fragAllResult, fragTopResult] = await Promise.all([
-    supabase.from("soul_fragments").select("wallet, current_balance"),
-    supabase
+    supabaseAdmin.from("soul_fragments").select("wallet, current_balance"),
+    supabaseAdmin
       .from("soul_fragments")
       .select("wallet, current_balance")
       .order("current_balance", { ascending: false })
@@ -315,7 +315,7 @@ export default async function LeaderboardPage({
   let agents: AgentRow[] = [];
   const topWalletAddrs = fragTop.map(r => r.wallet.toLowerCase());
   if (topWalletAddrs.length > 0) {
-    const { data } = await supabase
+    const { data } = await supabaseAdmin
       .from("pre_mint_agents")
       .select("wallet, division, tier")
       .in("wallet", topWalletAddrs);
