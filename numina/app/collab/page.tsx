@@ -6,44 +6,31 @@ import { useState } from "react";
 
 type FormState = {
   // Section 1 — Your Group
-  group_name:          string;
-  group_twitter:       string;
-  // Section 2 — Discord
-  discord_server_name: string;
-  discord_guild_id:    string;
-  discord_role_name:   string;
-  discord_role_id:     string;
-  discord_members:     string;
-  avg_raffle_entries:  string;
-  // Section 3 — What You Want
-  requested_spots:     string;
-  wl_gtd:              boolean;
-  wl_fcfs:             boolean;
-  // Section 4 — You
-  submitter_twitter:   string;
-  notes:               string;
-  verification_tweet:  string;
-  wallet:              string;
+  group_name:         string;
+  group_twitter:      string;
+  // Section 2 — What You Want
+  requested_spots:    string;
+  wl_gtd:             boolean;
+  wl_fcfs:            boolean;
+  // Section 3 — You
+  submitter_twitter:  string;
+  wallet:             string;
+  notes:              string;
+  verification_tweet: string;
 };
 
 type Status = "idle" | "submitting" | "done" | "error";
 
 const INITIAL: FormState = {
-  group_name:          "",
-  group_twitter:       "",
-  discord_server_name: "",
-  discord_guild_id:    "",
-  discord_role_name:   "",
-  discord_role_id:     "",
-  discord_members:     "",
-  avg_raffle_entries:  "",
-  requested_spots:     "",
-  wl_gtd:              true,
-  wl_fcfs:             false,
-  submitter_twitter:   "",
-  notes:               "",
-  verification_tweet:  "",
-  wallet:              "",
+  group_name:         "",
+  group_twitter:      "",
+  requested_spots:    "",
+  wl_gtd:             true,
+  wl_fcfs:            false,
+  submitter_twitter:  "",
+  wallet:             "",
+  notes:              "",
+  verification_tweet: "",
 };
 
 // ── Shared styles ─────────────────────────────────────────────────────────────
@@ -75,8 +62,8 @@ function SectionHeader({ n, title }: { n: string; title: string }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function CollabPage() {
-  const [form, setForm]       = useState<FormState>(INITIAL);
-  const [status, setStatus]   = useState<Status>("idle");
+  const [form, setForm]         = useState<FormState>(INITIAL);
+  const [status, setStatus]     = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   function field(key: keyof FormState) {
@@ -107,20 +94,14 @@ export default function CollabPage() {
     if (form.wl_fcfs) wl_types.push("FCFS");
 
     const payload = {
-      group_name:          form.group_name.trim(),
-      group_twitter:       form.group_twitter.trim(),
-      discord_server_name: form.discord_server_name.trim(),
-      discord_guild_id:    form.discord_guild_id.trim(),
-      discord_role_name:   form.discord_role_name.trim(),
-      discord_role_id:     form.discord_role_id.trim(),
-      discord_members:     form.discord_members     ? parseInt(form.discord_members,     10) : null,
-      avg_raffle_entries:  form.avg_raffle_entries  ? parseInt(form.avg_raffle_entries,  10) : null,
-      requested_spots:     form.requested_spots     ? parseInt(form.requested_spots,     10) : null,
-      wl_type:             wl_types.join(","),
-      submitter_twitter:   form.submitter_twitter.trim(),
-      notes:               form.notes.trim() || null,
-      verification_tweet:  form.verification_tweet.trim(),
-      wallet:              form.wallet.trim(),
+      group_name:         form.group_name.trim(),
+      group_twitter:      form.group_twitter.trim(),
+      requested_spots:    form.requested_spots ? parseInt(form.requested_spots, 10) : null,
+      wl_type:            wl_types.join(","),
+      submitter_twitter:  form.submitter_twitter.trim(),
+      wallet:             form.wallet.trim(),
+      notes:              form.notes.trim() || null,
+      verification_tweet: form.verification_tweet.trim(),
     };
 
     try {
@@ -154,15 +135,21 @@ export default function CollabPage() {
             REQUEST SENT.
           </p>
           <p className="mono text-sm" style={{ color: "#555555", maxWidth: 360, margin: "0 auto" }}>
-            Submission received. Verification tweet will be checked. You will be contacted via X DM if approved.
+            Submission received. Tweet verified automatically. You will be contacted via X DM if approved.
           </p>
           <hr className="chain-border" />
-          <button
-            onClick={() => { setForm(INITIAL); setStatus("idle"); setErrorMsg(null); }}
-            className="btn-outline pixel text-[7px] self-center"
-          >
-            SUBMIT ANOTHER
-          </button>
+          <div className="flex gap-3 justify-center flex-wrap">
+            <a href={`/collab/status?twitter=${encodeURIComponent(form.group_twitter)}`}
+              className="btn-amber pixel text-[7px]">
+              CHECK STATUS
+            </a>
+            <button
+              onClick={() => { setForm(INITIAL); setStatus("idle"); setErrorMsg(null); }}
+              className="btn-outline pixel text-[7px]"
+            >
+              SUBMIT ANOTHER
+            </button>
+          </div>
         </div>
       </main>
     );
@@ -188,7 +175,7 @@ export default function CollabPage() {
         <div className="md:col-span-2">
           <form onSubmit={handleSubmit} className="flex flex-col gap-10">
 
-            {/* SECTION 1 — YOUR GROUP */}
+            {/* SECTION 01 — YOUR GROUP */}
             <div className="numina-card bracketed p-6 flex flex-col gap-5">
               <SectionHeader n="01" title="YOUR GROUP" />
 
@@ -219,98 +206,9 @@ export default function CollabPage() {
               </div>
             </div>
 
-            {/* SECTION 2 — DISCORD */}
+            {/* SECTION 02 — WHAT YOU WANT */}
             <div className="numina-card bracketed p-6 flex flex-col gap-5">
-              <SectionHeader n="02" title="DISCORD" />
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div>
-                  <label className={LABEL}>SERVER NAME</label>
-                  <input
-                    type="text"
-                    value={form.discord_server_name}
-                    onChange={field("discord_server_name")}
-                    placeholder="My NFT Community"
-                    maxLength={100}
-                    required
-                    style={INPUT}
-                  />
-                </div>
-                <div>
-                  <label className={LABEL}>SERVER ID (GUILD ID)</label>
-                  <input
-                    type="text"
-                    value={form.discord_guild_id}
-                    onChange={field("discord_guild_id")}
-                    placeholder="1234567890123456789"
-                    maxLength={32}
-                    required
-                    style={INPUT}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div>
-                  <label className={LABEL}>COLLAB ROLE NAME</label>
-                  <input
-                    type="text"
-                    value={form.discord_role_name}
-                    onChange={field("discord_role_name")}
-                    placeholder="WL Holder"
-                    maxLength={100}
-                    required
-                    style={INPUT}
-                  />
-                </div>
-                <div>
-                  <label className={LABEL}>COLLAB ROLE ID</label>
-                  <input
-                    type="text"
-                    value={form.discord_role_id}
-                    onChange={field("discord_role_id")}
-                    placeholder="1234567890123456789"
-                    maxLength={32}
-                    required
-                    style={INPUT}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div>
-                  <label className={LABEL}>TOTAL SERVER MEMBERS</label>
-                  <input
-                    type="number"
-                    value={form.discord_members}
-                    onChange={field("discord_members")}
-                    placeholder="5000"
-                    min={0}
-                    required
-                    style={INPUT}
-                  />
-                </div>
-                <div>
-                  <label className={LABEL}>AVG RAFFLE ENTRIES</label>
-                  <input
-                    type="number"
-                    value={form.avg_raffle_entries}
-                    onChange={field("avg_raffle_entries")}
-                    placeholder="300"
-                    min={0}
-                    required
-                    style={INPUT}
-                  />
-                  <p className="mono" style={{ fontSize: 10, color: "#333333", marginTop: 4 }}>
-                    Average entries per raffle in your server
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* SECTION 3 — WHAT YOU WANT */}
-            <div className="numina-card bracketed p-6 flex flex-col gap-5">
-              <SectionHeader n="03" title="WHAT YOU WANT" />
+              <SectionHeader n="02" title="WHAT YOU WANT" />
 
               <div>
                 <label className={LABEL}>SPOTS REQUESTED (MAX 50)</label>
@@ -330,7 +228,7 @@ export default function CollabPage() {
                 <label className={LABEL}>WL TYPE</label>
                 <div className="flex gap-6 mt-1">
                   {(["wl_gtd", "wl_fcfs"] as const).map((key) => {
-                    const label = key === "wl_gtd" ? "GTD" : "FCFS";
+                    const label   = key === "wl_gtd" ? "GTD" : "FCFS";
                     const checked = form[key];
                     return (
                       <button
@@ -342,18 +240,15 @@ export default function CollabPage() {
                       >
                         <span
                           style={{
-                            display:     "inline-block",
-                            width:       14,
-                            height:      14,
-                            border:      `1px solid ${checked ? "#FFFFFF" : "#333333"}`,
-                            background:  checked ? "#FFFFFF" : "transparent",
-                            flexShrink:  0,
+                            display:    "inline-block",
+                            width:      14,
+                            height:     14,
+                            border:     `1px solid ${checked ? "#FFFFFF" : "#333333"}`,
+                            background: checked ? "#FFFFFF" : "transparent",
+                            flexShrink: 0,
                           }}
                         />
-                        <span
-                          className="pixel text-[7px]"
-                          style={{ color: checked ? "#FFFFFF" : "#444444" }}
-                        >
+                        <span className="pixel text-[7px]" style={{ color: checked ? "#FFFFFF" : "#444444" }}>
                           {label}
                         </span>
                       </button>
@@ -366,9 +261,9 @@ export default function CollabPage() {
               </div>
             </div>
 
-            {/* SECTION 4 — YOU */}
+            {/* SECTION 03 — YOU */}
             <div className="numina-card bracketed p-6 flex flex-col gap-5">
-              <SectionHeader n="04" title="YOU" />
+              <SectionHeader n="03" title="YOU" />
 
               <div>
                 <label className={LABEL}>YOUR TWITTER / X HANDLE</label>
@@ -406,7 +301,7 @@ export default function CollabPage() {
                 <textarea
                   value={form.notes}
                   onChange={field("notes")}
-                  placeholder="Anything else we should know about your community or offering..."
+                  placeholder="Anything else we should know..."
                   rows={3}
                   maxLength={500}
                   style={{ ...INPUT, resize: "vertical" }}
@@ -425,7 +320,7 @@ export default function CollabPage() {
                   style={INPUT}
                 />
                 <p className="mono" style={{ fontSize: 10, color: "#333333", marginTop: 4 }}>
-                  Tweet must mention @NUMINA and describe the collab offer.
+                  Tweet must be posted from your group Twitter account and mention @NUMINA.
                 </p>
               </div>
             </div>
@@ -442,7 +337,7 @@ export default function CollabPage() {
               className="btn-amber pixel text-[7px]"
               style={{ minHeight: 44 }}
             >
-              {status === "submitting" ? "SUBMITTING..." : "► SUBMIT REQUEST"}
+              {status === "submitting" ? "VERIFYING + SUBMITTING..." : "► SUBMIT REQUEST"}
             </button>
           </form>
         </div>
@@ -454,7 +349,7 @@ export default function CollabPage() {
             <div className="flex flex-col gap-3">
               {[
                 "Max 50 spots per partner",
-                "Twitter verification required",
+                "Tweet must be from your group account",
                 "GTD and/or FCFS allocation",
                 "All requests reviewed manually",
                 "Approved partners notified via DM",
@@ -475,8 +370,8 @@ export default function CollabPage() {
             <p className="pixel text-[7px] text-dim mb-4">// WHAT HAPPENS NEXT</p>
             <div className="flex flex-col gap-3">
               {[
-                "We verify the tweet",
-                "Team reviews your Discord stats",
+                "Tweet auto-verified on submit",
+                "Team reviews request",
                 "Spots allocated on approval",
                 "You get DM on X",
               ].map((step, i) => (
@@ -488,6 +383,13 @@ export default function CollabPage() {
                 </div>
               ))}
             </div>
+          </div>
+
+          <div className="numina-card bracketed p-5">
+            <p className="pixel text-[7px] text-dim mb-3">// ALREADY SUBMITTED?</p>
+            <a href="/collab/status" className="btn-ghost pixel text-[7px] block text-center" style={{ minHeight: 36, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              CHECK STATUS
+            </a>
           </div>
         </div>
       </div>

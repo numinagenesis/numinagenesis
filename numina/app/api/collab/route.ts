@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { parseTweetUrl } from "@/lib/parse-tweet-url";
 
 // ── GET /api/collab — admin only, returns pending count ───────────────────────
 
@@ -22,32 +23,45 @@ export async function GET() {
   return NextResponse.json({ count: count ?? 0 });
 }
 
+// ── Fetch tweet author via fxtwitter ──────────────────────────────────────────
+
+async function fetchTweetAuthor(tweetUrl: string): Promise<string | null> {
+  const parsed = parseTweetUrl(tweetUrl);
+  if (!parsed.ok) return null;
+
+  try {
+    const res = await fetch(
+      `https://api.fxtwitter.com/status/${parsed.tweetId}`,
+      {
+        headers: { "User-Agent": "NUMINA/1.0" },
+        signal: AbortSignal.timeout(10_000),
+      }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const author = data?.tweet?.author ?? data?.tweet?.user ?? null;
+    return (author?.screen_name ?? author?.handle ?? null) as string | null;
+  } catch {
+    return null;
+  }
+}
+
 // ── POST /api/collab — public, no auth required ───────────────────────────────
 
 export async function POST(req: NextRequest) {
   let body: {
-    // Section 1
-    group_name?:          string;
-    group_twitter?:       string;
-    // Section 2
-    discord_server_name?: string;
-    discord_guild_id?:    string;
-    discord_role_name?:   string;
-    discord_role_id?:     string;
-    discord_members?:     number | null;
-    avg_raffle_entries?:  number | null;
-    // Section 3
-    requested_spots?:     number | null;
-    wl_type?:             string;
-    // Section 4
-    submitter_twitter?:   string;
-    notes?:               string | null;
-    verification_tweet?:  string;
-    wallet?:              string;
-    // Legacy fields (backwards compat)
-    project_name?:        string;
-    twitter_handle?:      string;
-    offering?:            string;
+    group_name?:         string;
+    group_twitter?:      string;
+    requested_spots?:    number | null;
+    wl_type?:            string;
+    submitter_twitter?:  string;
+    wallet?:             string;
+    notes?:              string | null;
+    verification_tweet?: string;
+    // Legacy compat
+    project_name?:       string;
+    twitter_handle?:     string;
+    offering?:           string;
   };
 
   try {
@@ -59,32 +73,21 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Support both new field names and legacy names
-  const group_name         = (body.group_name         ?? body.project_name   ?? "").trim();
-  const group_twitter      = (body.group_twitter       ?? body.twitter_handle ?? "").trim();
-  const discord_server_name = (body.discord_server_name ?? "").trim();
-  const discord_guild_id   = (body.discord_guild_id   ?? "").trim();
-  const discord_role_name  = (body.discord_role_name  ?? "").trim();
-  const discord_role_id    = (body.discord_role_id    ?? "").trim();
-  const discord_members    = body.discord_members    ?? null;
-  const avg_raffle_entries = body.avg_raffle_entries ?? null;
-  const requested_spots    = body.requested_spots    ?? null;
-  const wl_type            = (body.wl_type ?? "GTD").trim();
-  const submitter_twitter  = (body.submitter_twitter ?? "").trim();
-  const notes              = body.notes?.trim() || null;
+  const group_name        = (body.group_name        ?? body.project_name   ?? "").trim();
+  const group_twitter     = (body.group_twitter      ?? body.twitter_handle ?? "").trim();
+  const requested_spots   = body.requested_spots    ?? null;
+  const wl_type           = (body.wl_type           ?? "GTD").trim();
+  const submitter_twitter = (body.submitter_twitter  ?? "").trim();
+  const wallet            = (body.wallet            ?? "").trim();
+  const notes             = body.notes?.trim()      || null;
   const verification_tweet = (body.verification_tweet ?? "").trim();
-  const wallet             = (body.wallet ?? "").trim();
 
   // Required field validation
-  if (!group_name)         return NextResponse.json({ code: "missing_field", message: "Group name is required" },             { status: 400 });
-  if (!group_twitter)      return NextResponse.json({ code: "missing_field", message: "Group Twitter handle is required" },   { status: 400 });
-  if (!discord_server_name) return NextResponse.json({ code: "missing_field", message: "Discord server name is required" },  { status: 400 });
-  if (!discord_guild_id)   return NextResponse.json({ code: "missing_field", message: "Discord server ID is required" },     { status: 400 });
-  if (!discord_role_name)  return NextResponse.json({ code: "missing_field", message: "Discord role name is required" },     { status: 400 });
-  if (!discord_role_id)    return NextResponse.json({ code: "missing_field", message: "Discord role ID is required" },       { status: 400 });
-  if (!submitter_twitter)  return NextResponse.json({ code: "missing_field", message: "Your Twitter handle is required" },   { status: 400 });
-  if (!verification_tweet) return NextResponse.json({ code: "missing_field", message: "Verification tweet is required" },    { status: 400 });
-  if (!wallet)             return NextResponse.json({ code: "missing_field", message: "Wallet address is required" },        { status: 400 });
+  if (!group_name)         return NextResponse.json({ code: "missing_field", message: "Group name is required" },           { status: 400 });
+  if (!group_twitter)      return NextResponse.json({ code: "missing_field", message: "Group Twitter handle is required" }, { status: 400 });
+  if (!submitter_twitter)  return NextResponse.json({ code: "missing_field", message: "Your Twitter handle is required" },  { status: 400 });
+  if (!wallet)             return NextResponse.json({ code: "missing_field", message: "Wallet address is required" },       { status: 400 });
+  if (!verification_tweet) return NextResponse.json({ code: "missing_field", message: "Verification tweet is required" },  { status: 400 });
 
   if (requested_spots !== null && requested_spots > 50) {
     return NextResponse.json({ code: "invalid_field", message: "Max 50 spots per partner" }, { status: 400 });
@@ -108,27 +111,47 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // ── Tweet verification ────────────────────────────────────────────────────
+
+  let tweet_verified = false;
+
+  const tweetAuthor = await fetchTweetAuthor(verification_tweet);
+
+  if (tweetAuthor !== null) {
+    // Author fetched — compare to group_twitter
+    if (tweetAuthor.toLowerCase() !== handle) {
+      return NextResponse.json(
+        {
+          code: "wrong_tweet_author",
+          message: `Tweet not posted by @${handle}. Post the verification tweet from that account first.`,
+        },
+        { status: 400 }
+      );
+    }
+    tweet_verified = true;
+  }
+  // If tweetAuthor is null (fxtwitter failed), proceed with tweet_verified = false for manual review
+
+  // ── Insert ────────────────────────────────────────────────────────────────
+
   const { error: insertError } = await supabaseAdmin
     .from("collab_requests")
     .insert({
-      // Core / legacy columns
-      project_name:        group_name,
-      twitter_handle:      handle,
-      wallet:              wallet.toLowerCase(),
-      offering:            wl_type,
+      // Core / legacy columns (kept for admin UI compat)
+      project_name:       group_name,
+      twitter_handle:     handle,
+      wallet:             wallet.toLowerCase(),
+      offering:           wl_type,
       verification_tweet,
-      status:              "pending",
+      status:             "pending",
       // New columns
-      discord_server_name,
-      discord_guild_id,
-      discord_role_name,
-      discord_role_id,
-      discord_members,
-      avg_raffle_entries,
+      group_name,
+      group_twitter:      handle,
       wl_type,
-      submitter_twitter:   submitterHandle,
+      submitter_twitter:  submitterHandle,
       notes,
       requested_spots,
+      tweet_verified,
     });
 
   if (insertError) {
@@ -139,5 +162,5 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, tweet_verified });
 }
