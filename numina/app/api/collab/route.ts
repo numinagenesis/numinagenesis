@@ -26,11 +26,28 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   let body: {
-    project_name?: string;
-    twitter_handle?: string;
-    wallet?: string;
-    offering?: string;
-    verification_tweet?: string;
+    // Section 1
+    group_name?:          string;
+    group_twitter?:       string;
+    // Section 2
+    discord_server_name?: string;
+    discord_guild_id?:    string;
+    discord_role_name?:   string;
+    discord_role_id?:     string;
+    discord_members?:     number | null;
+    avg_raffle_entries?:  number | null;
+    // Section 3
+    requested_spots?:     number | null;
+    wl_type?:             string;
+    // Section 4
+    submitter_twitter?:   string;
+    notes?:               string | null;
+    verification_tweet?:  string;
+    wallet?:              string;
+    // Legacy fields (backwards compat)
+    project_name?:        string;
+    twitter_handle?:      string;
+    offering?:            string;
   };
 
   try {
@@ -42,27 +59,41 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { project_name, twitter_handle, wallet, offering, verification_tweet } = body;
+  // Support both new field names and legacy names
+  const group_name         = (body.group_name         ?? body.project_name   ?? "").trim();
+  const group_twitter      = (body.group_twitter       ?? body.twitter_handle ?? "").trim();
+  const discord_server_name = (body.discord_server_name ?? "").trim();
+  const discord_guild_id   = (body.discord_guild_id   ?? "").trim();
+  const discord_role_name  = (body.discord_role_name  ?? "").trim();
+  const discord_role_id    = (body.discord_role_id    ?? "").trim();
+  const discord_members    = body.discord_members    ?? null;
+  const avg_raffle_entries = body.avg_raffle_entries ?? null;
+  const requested_spots    = body.requested_spots    ?? null;
+  const wl_type            = (body.wl_type ?? "GTD").trim();
+  const submitter_twitter  = (body.submitter_twitter ?? "").trim();
+  const notes              = body.notes?.trim() || null;
+  const verification_tweet = (body.verification_tweet ?? "").trim();
+  const wallet             = (body.wallet ?? "").trim();
 
-  if (!project_name?.trim()) {
-    return NextResponse.json({ code: "missing_field", message: "project_name is required" }, { status: 400 });
-  }
-  if (!twitter_handle?.trim()) {
-    return NextResponse.json({ code: "missing_field", message: "twitter_handle is required" }, { status: 400 });
-  }
-  if (!wallet?.trim()) {
-    return NextResponse.json({ code: "missing_field", message: "wallet is required" }, { status: 400 });
-  }
-  if (!offering?.trim()) {
-    return NextResponse.json({ code: "missing_field", message: "offering is required" }, { status: 400 });
-  }
-  if (!verification_tweet?.trim()) {
-    return NextResponse.json({ code: "missing_field", message: "verification_tweet is required" }, { status: 400 });
+  // Required field validation
+  if (!group_name)         return NextResponse.json({ code: "missing_field", message: "Group name is required" },             { status: 400 });
+  if (!group_twitter)      return NextResponse.json({ code: "missing_field", message: "Group Twitter handle is required" },   { status: 400 });
+  if (!discord_server_name) return NextResponse.json({ code: "missing_field", message: "Discord server name is required" },  { status: 400 });
+  if (!discord_guild_id)   return NextResponse.json({ code: "missing_field", message: "Discord server ID is required" },     { status: 400 });
+  if (!discord_role_name)  return NextResponse.json({ code: "missing_field", message: "Discord role name is required" },     { status: 400 });
+  if (!discord_role_id)    return NextResponse.json({ code: "missing_field", message: "Discord role ID is required" },       { status: 400 });
+  if (!submitter_twitter)  return NextResponse.json({ code: "missing_field", message: "Your Twitter handle is required" },   { status: 400 });
+  if (!verification_tweet) return NextResponse.json({ code: "missing_field", message: "Verification tweet is required" },    { status: 400 });
+  if (!wallet)             return NextResponse.json({ code: "missing_field", message: "Wallet address is required" },        { status: 400 });
+
+  if (requested_spots !== null && requested_spots > 50) {
+    return NextResponse.json({ code: "invalid_field", message: "Max 50 spots per partner" }, { status: 400 });
   }
 
-  const handle = twitter_handle.trim().replace(/^@/, "").toLowerCase();
+  const handle          = group_twitter.replace(/^@/, "").toLowerCase();
+  const submitterHandle = submitter_twitter.replace(/^@/, "").toLowerCase();
 
-  // Check if this twitter handle already has an approved request
+  // Check if this group twitter already has an approved request
   const { data: existing } = await supabaseAdmin
     .from("collab_requests")
     .select("id, status")
@@ -80,12 +111,24 @@ export async function POST(req: NextRequest) {
   const { error: insertError } = await supabaseAdmin
     .from("collab_requests")
     .insert({
-      project_name: project_name.trim(),
-      twitter_handle: handle,
-      wallet: wallet.trim().toLowerCase(),
-      offering: offering.trim(),
-      verification_tweet: verification_tweet.trim(),
-      status: "pending",
+      // Core / legacy columns
+      project_name:        group_name,
+      twitter_handle:      handle,
+      wallet:              wallet.toLowerCase(),
+      offering:            wl_type,
+      verification_tweet,
+      status:              "pending",
+      // New columns
+      discord_server_name,
+      discord_guild_id,
+      discord_role_name,
+      discord_role_id,
+      discord_members,
+      avg_raffle_entries,
+      wl_type,
+      submitter_twitter:   submitterHandle,
+      notes,
+      requested_spots,
     });
 
   if (insertError) {
