@@ -251,6 +251,23 @@ export default function ForgePage() {
     }
   }, []);
 
+  // Poll quantum event every 30s so banner appears/disappears without a refresh
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res  = await fetch("/api/forge/quantum");
+        const data = await res.json();
+        if (data.active && data.time_remaining_seconds > 0) {
+          setQuantumEvent({ active: true, multiplier: data.multiplier, time_remaining_seconds: data.time_remaining_seconds });
+          setQSecsLeft(data.time_remaining_seconds);
+        } else {
+          setQuantumEvent(null);
+        }
+      } catch { /* non-critical */ }
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Countdown for quantum event banner
   useEffect(() => {
     if (!quantumEvent?.active) return;
