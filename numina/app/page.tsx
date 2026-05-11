@@ -64,7 +64,7 @@ export default function HomePage() {
 
           {/* CTAs — stacked full-width on mobile */}
           <div className="flex flex-col sm:flex-row gap-3 justify-center w-full max-w-xs sm:max-w-none">
-            <Link href="/summon" className="btn-amber w-full sm:w-auto text-center">► ENTER SUMMON</Link>
+            <Link href="/forge" className="btn-amber w-full sm:w-auto text-center">► ENTER FORGE</Link>
             <button className="btn-outline w-full sm:w-auto">NOTIFY ME</button>
           </div>
         </section>
@@ -121,7 +121,7 @@ export default function HomePage() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center w-full">
               <a href="https://twitter.com/numina_xyz" target="_blank" rel="noopener noreferrer"
                  className="btn-outline w-full sm:w-auto text-center">FOLLOW @NUMINA</a>
-              <Link href="/summon" className="btn-amber w-full sm:w-auto text-center">► TRY SUMMON</Link>
+              <Link href="/forge" className="btn-amber w-full sm:w-auto text-center">► ENTER FORGE</Link>
             </div>
           </div>
         </section>
