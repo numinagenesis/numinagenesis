@@ -24,10 +24,18 @@ export async function GET() {
     ? Math.max(0, Math.floor((expiresMs - now) / 1000))
     : 0;
 
-  return NextResponse.json({
-    active:                effectivelyActive,
-    multiplier:            qe.multiplier,
-    expires_at:            qe.expires_at,
-    time_remaining_seconds,
-  });
+  return NextResponse.json(
+    {
+      active:                effectivelyActive,
+      multiplier:            qe.multiplier,
+      expires_at:            qe.expires_at,
+      time_remaining_seconds,
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+        "Pragma":        "no-cache",
+      },
+    }
+  );
 }
