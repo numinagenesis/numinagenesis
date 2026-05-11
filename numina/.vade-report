@@ -1,0 +1,54 @@
+# Vercel Speed Insights Implementation
+
+## Summary
+Successfully installed and configured Vercel Speed Insights for the NUMINA Next.js project.
+
+## Changes Made
+
+### 1. Package Installation
+- Installed `@vercel/speed-insights` package (version automatically resolved by npm)
+- Updated `package.json` with the new dependency
+- Generated `package-lock.json` to lock dependency versions
+
+### 2. Code Integration
+**Modified: `app/layout.tsx`**
+- Added import: `import { SpeedInsights } from '@vercel/speed-insights/next';`
+- Integrated `<SpeedInsights />` component at the end of the `<body>` tag
+- Placement ensures proper initialization after all page content
+
+## Implementation Details
+
+### Framework-Specific Approach
+Following the official Vercel documentation (fetched from https://vercel.com/docs/speed-insights/quickstart), I identified this as a Next.js App Router project and used the appropriate integration method:
+
+1. **Package**: Used `@vercel/speed-insights/next` for Next.js App Router (v13.5+)
+2. **Component**: Added `<SpeedInsights />` as a React component
+3. **Location**: Placed in the root layout (`app/layout.tsx`) inside the `<body>` tag
+
+### Code Structure Preservation
+- Maintained existing code formatting and structure
+- Preserved all existing functionality including Nav, footer, and Providers
+- Added SpeedInsights as the last element in the body to avoid interfering with existing components
+
+## Build Verification
+✅ Build completed successfully with no errors
+- Tested with `npm run build`
+- All pages generated correctly
+- No TypeScript errors introduced
+- Warnings related to external dependencies (metamask, walletconnect) were pre-existing
+
+## Next Steps for Deployment
+1. **Enable Speed Insights on Vercel Dashboard**: Navigate to your project settings and enable Speed Insights
+2. **Deploy to Vercel**: The changes will be active on the next deployment
+3. **View Metrics**: After deployment and user traffic, access Speed Insights from the project dashboard
+
+## Files Modified
+- `app/layout.tsx` - Added SpeedInsights import and component
+- `package.json` - Added @vercel/speed-insights dependency
+- `package-lock.json` - Generated lockfile for consistent dependency resolution
+
+## Notes
+- The SpeedInsights component is lightweight and has minimal performance impact
+- It automatically tracks Core Web Vitals and page load metrics
+- Data will appear in the Vercel dashboard after deployment and user interactions
+- No additional configuration required - works out of the box for Next.js
