@@ -3,10 +3,9 @@ import Ticker from "@/components/Ticker";
 import AgentCard from "@/components/AgentCard";
 
 const STATS = [
-  { value: "4,444", label: "SUPPLY"  },
-  { value: "12",    label: "DIVS"    },
-  { value: "4",     label: "TIERS"   },
-  { value: "∞",     label: "TASKS"   },
+  { value: "12", label: "DIVS"  },
+  { value: "4",  label: "TIERS" },
+  { value: "∞",  label: "TASKS" },
 ];
 
 const PREVIEW_CARDS = [
@@ -53,7 +52,7 @@ export default function HomePage() {
           </p>
 
           {/* Stats bar — 2×2 on mobile, single row on sm+ */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mb-12 w-full max-w-lg">
+          <div className="grid grid-cols-3 gap-6 mb-12 w-full max-w-lg">
             {STATS.map(({ value, label }) => (
               <div key={label} className="flex flex-col items-center gap-1">
                 <span className="pixel" style={{ fontSize: "clamp(14px,3vw,22px)", color: "#FFFFFF" }}>{value}</span>
@@ -109,8 +108,8 @@ export default function HomePage() {
             <h2 className="pixel leading-loose" style={{ fontSize: "clamp(12px,3vw,20px)", color: "#FFFFFF" }}>
               MINT IS COMING.
             </h2>
-            <div className="grid grid-cols-3 gap-8">
-              {[["4,444","SUPPLY"],["TBA","PRICE"],["ETH","NETWORK"]].map(([v,l])=>(
+            <div className="grid grid-cols-2 gap-8">
+              {[["TBA","PRICE"],["ETH","NETWORK"]].map(([v,l])=>(
                 <div key={l} className="flex flex-col items-center gap-1">
                   <span className="pixel text-[14px]" style={{ color: "#FFFFFF" }}>{v}</span>
                   <span className="mono text-[10px] text-dim">{l}</span>

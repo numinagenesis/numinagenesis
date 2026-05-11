@@ -8,7 +8,6 @@ const LINKS = [
   { href: "/summon",      label: "SUMMON"      },
   { href: "/forge",       label: "FORGE"       },
   { href: "/docs",        label: "DOCS"        },
-  { href: "/mint",        label: "MINT"        },
   { href: "/points",      label: "POINTS"      },
   { href: "/leaderboard", label: "LEADERBOARD" },
 ];
