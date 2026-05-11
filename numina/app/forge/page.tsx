@@ -280,7 +280,9 @@ export default function ForgePage() {
         setMissionState("idle");
         return;
       }
-      setCurrentMission(data.mission ?? "");
+      const mission = data.mission ?? "";
+      setCurrentMission(mission);
+      setMissionResponse(mission);   // pre-fill editable textarea
       setMissionState("mission_ready");
     } catch {
       setMissionError("Network error - try again");
@@ -288,7 +290,7 @@ export default function ForgePage() {
     }
   }
 
-  // ── Submit mission response ───────────────────────────────────────────────────
+  // ── Deploy mission (agent executes it) ───────────────────────────────────────
   async function submitResponse() {
     if (!missionResponse.trim() || missionState !== "mission_ready" || tasksToday >= DAILY_LIMIT) return;
     setMissionState("submitting");
@@ -298,7 +300,7 @@ export default function ForgePage() {
       const res  = await fetch("/api/forge/train", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ mission: currentMission, user_response: missionResponse.trim() }),
+        body:    JSON.stringify({ input: missionResponse.trim() }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -591,7 +593,7 @@ export default function ForgePage() {
                 {/* MISSION READY / SUBMITTING */}
                 {(missionState === "mission_ready" || missionState === "submitting") && (
                   <>
-                    {/* Mission briefing */}
+                    {/* Mission briefing (read-only display) */}
                     <div style={{ background: "#080808", border: "1px solid #222222", padding: "12px 14px" }}>
                       <p className="pixel text-[7px] text-dim mb-2">// MISSION BRIEFING</p>
                       <p className="mono text-[11px]" style={{ color: "#FFFFFF", lineHeight: 1.7 }}>
@@ -599,31 +601,25 @@ export default function ForgePage() {
                       </p>
                     </div>
 
-                    {/* Response textarea */}
+                    {/* Editable mission — pre-filled, user can refine before deploying */}
                     <textarea
                       value={missionResponse}
                       onChange={(e) => setMissionResponse(e.target.value)}
                       disabled={missionState === "submitting"}
                       rows={4}
-                      placeholder="Your response to this mission..."
+                      placeholder="Edit mission before deploying..."
                       className="w-full mono text-sm px-3 py-2 outline-none resize-none"
                       style={{
                         background: "#080808",
-                        border:     "1px solid #222222",
-                        color:      "#FFFFFF",
+                        border:     "1px solid #333333",
+                        color:      "#AAAAAA",
                       }}
                     />
 
-                    {/* Char counter + new mission link */}
+                    {/* Actions row */}
                     <div className="flex justify-between items-center">
-                      <span
-                        className="mono text-[10px]"
-                        style={{ color: missionResponse.length < 50 ? "#666666" : "#AAAAAA" }}
-                      >
-                        {missionResponse.length} chars
-                        {missionResponse.length > 0 && missionResponse.length < 50
-                          ? ` — 50 min for full reward`
-                          : ""}
+                      <span className="mono text-[10px] text-dim">
+                        edit mission or deploy as-is
                       </span>
                       <button
                         onClick={getMission}
@@ -654,7 +650,7 @@ export default function ForgePage() {
                       {missionState === "submitting" ? (
                         <span>AGENT WORKING<span className="blink">...</span></span>
                       ) : (
-                        "&gt; SUBMIT RESPONSE"
+                        "&gt; DEPLOY MISSION"
                       )}
                     </button>
                   </>
