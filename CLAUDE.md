@@ -876,3 +876,9 @@ Sections most likely to need updates per task type:
 - New error code → add to Submission validation pipeline
 - New hard rule or bug fixed → add row to Gotchas table
 - Build route count changes → update "Last successful build" line
+
+PACKAGE MANAGER: pnpm (NOT npm)
+All build commands: pnpm build
+All install commands: pnpm install
+All dev commands: pnpm dev
+Never use npm in this project.
