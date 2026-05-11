@@ -6,29 +6,27 @@ import { useState } from "react";
 
 type FormState = {
   // Section 1 — Your Group
-  group_name:         string;
-  group_twitter:      string;
+  group_name:        string;
+  group_twitter:     string;
   // Section 2 — What You Want
-  requested_spots:    string;
-  wl_gtd:             boolean;
-  wl_fcfs:            boolean;
+  requested_spots:   string;
+  wl_gtd:            boolean;
+  wl_fcfs:           boolean;
   // Section 3 — You
-  submitter_twitter:  string;
-  notes:              string;
-  verification_tweet: string;
+  submitter_twitter: string;
+  notes:             string;
 };
 
-type Status = "idle" | "submitting" | "done" | "error";
+type Stage = "filling" | "verifying" | "submitted";
 
 const INITIAL: FormState = {
-  group_name:         "",
-  group_twitter:      "",
-  requested_spots:    "",
-  wl_gtd:             true,
-  wl_fcfs:            false,
-  submitter_twitter:  "",
-  notes:              "",
-  verification_tweet: "",
+  group_name:        "",
+  group_twitter:     "",
+  requested_spots:   "",
+  wl_gtd:            true,
+  wl_fcfs:           false,
+  submitter_twitter: "",
+  notes:             "",
 };
 
 // ── Shared styles ─────────────────────────────────────────────────────────────
@@ -60,9 +58,14 @@ function SectionHeader({ n, title }: { n: string; title: string }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function CollabPage() {
-  const [form, setForm]         = useState<FormState>(INITIAL);
-  const [status, setStatus]     = useState<Status>("idle");
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [form, setForm]                 = useState<FormState>(INITIAL);
+  const [stage, setStage]               = useState<Stage>("filling");
+  const [loading, setLoading]           = useState(false);
+  const [errorMsg, setErrorMsg]         = useState<string | null>(null);
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
+  const [verifCode, setVerifCode]       = useState<string | null>(null);
+  const [tweetUrl, setTweetUrl]         = useState("");
+  const [copied, setCopied]             = useState(false);
 
   function field(key: keyof FormState) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -75,16 +78,36 @@ export default function CollabPage() {
     return () => setForm(prev => ({ ...prev, [key]: !prev[key] }));
   }
 
+  // Tweet text that will be shown to the user
+  const tweetText = verifCode
+    ? `Confirming @NUMINA collab request.\nVerification: ${verifCode}\nnuminagenesis.vercel.app/collab`
+    : "";
+
+  function handleCopy() {
+    if (!tweetText) return;
+    navigator.clipboard.writeText(tweetText).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  function handleOpenTwitter() {
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  // ── Step 1: submit form, get verification code ────────────────────────────
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (status === "submitting") return;
+    if (loading) return;
 
     if (!form.wl_gtd && !form.wl_fcfs) {
       setErrorMsg("Select at least one WL type (GTD or FCFS)");
       return;
     }
 
-    setStatus("submitting");
+    setLoading(true);
     setErrorMsg(null);
 
     const wl_types: string[] = [];
@@ -92,13 +115,12 @@ export default function CollabPage() {
     if (form.wl_fcfs) wl_types.push("FCFS");
 
     const payload = {
-      group_name:         form.group_name.trim(),
-      group_twitter:      form.group_twitter.trim(),
-      requested_spots:    form.requested_spots ? parseInt(form.requested_spots, 10) : null,
-      wl_type:            wl_types.join(","),
-      submitter_twitter:  form.submitter_twitter.trim(),
-      notes:              form.notes.trim() || null,
-      verification_tweet: form.verification_tweet.trim(),
+      group_name:        form.group_name.trim(),
+      group_twitter:     form.group_twitter.trim(),
+      requested_spots:   form.requested_spots ? parseInt(form.requested_spots, 10) : null,
+      wl_type:           wl_types.join(","),
+      submitter_twitter: form.submitter_twitter.trim(),
+      notes:             form.notes.trim() || null,
     };
 
     try {
@@ -111,19 +133,110 @@ export default function CollabPage() {
 
       if (!res.ok) {
         setErrorMsg(data.message ?? "Submission failed");
-        setStatus("error");
       } else {
-        setStatus("done");
+        setSubmissionId(data.submission_id);
+        setVerifCode(data.verification_code);
+        setStage("verifying");
       }
     } catch {
       setErrorMsg("Network error - please try again");
-      setStatus("error");
+    } finally {
+      setLoading(false);
     }
   }
 
-  // ── Done state ───────────────────────────────────────────────────────────────
+  // ── Step 2: verify tweet ──────────────────────────────────────────────────
 
-  if (status === "done") {
+  async function handleVerify(e: React.FormEvent) {
+    e.preventDefault();
+    if (loading || !submissionId) return;
+
+    if (!tweetUrl.trim()) {
+      setErrorMsg("Paste your tweet URL first");
+      return;
+    }
+
+    setLoading(true);
+    setErrorMsg(null);
+
+    try {
+      const res  = await fetch("/api/collab", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ submission_id: submissionId, tweet_url: tweetUrl.trim() }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErrorMsg(data.message ?? "Verification failed");
+      } else {
+        setStage("submitted");
+      }
+    } catch {
+      setErrorMsg("Network error - please try again");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Sidebar (shared) ──────────────────────────────────────────────────────
+
+  const Sidebar = (
+    <div className="flex flex-col gap-5">
+      <div className="numina-card bracketed p-5">
+        <p className="pixel text-[7px] text-dim mb-4">// COLLAB RULES</p>
+        <div className="flex flex-col gap-3">
+          {[
+            "Max 50 spots per partner",
+            "Tweet must be from your group account",
+            "GTD and/or FCFS allocation",
+            "All requests reviewed manually",
+            "Approved partners notified via DM",
+          ].map((rule, i) => (
+            <div key={i} className="flex gap-3">
+              <span className="pixel text-[7px] text-primary shrink-0 mt-0.5">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <span className="mono text-xs" style={{ color: "#555555" }}>
+                {rule}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="numina-card bracketed p-5">
+        <p className="pixel text-[7px] text-dim mb-4">// WHAT HAPPENS NEXT</p>
+        <div className="flex flex-col gap-3">
+          {[
+            "Fill form → get verification code",
+            "Post code tweet from group account",
+            "Paste tweet URL to verify",
+            "Team reviews your request",
+            "You get DM on X if approved",
+          ].map((step, i) => (
+            <div key={i} className="flex gap-3 items-start">
+              <span className="pixel text-[7px] text-dim shrink-0">→</span>
+              <span className="mono text-xs" style={{ color: "#555555" }}>
+                {step}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="numina-card bracketed p-5">
+        <p className="pixel text-[7px] text-dim mb-3">// ALREADY SUBMITTED?</p>
+        <a href="/collab/status" className="btn-ghost pixel text-[7px] block text-center" style={{ minHeight: 36, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          CHECK STATUS
+        </a>
+      </div>
+    </div>
+  );
+
+  // ── Submitted state ───────────────────────────────────────────────────────
+
+  if (stage === "submitted") {
     return (
       <main className="px-6 py-16 max-w-2xl mx-auto">
         <div className="numina-card bracketed p-10 text-center flex flex-col gap-5">
@@ -132,16 +245,25 @@ export default function CollabPage() {
             REQUEST SENT.
           </p>
           <p className="mono text-sm" style={{ color: "#555555", maxWidth: 360, margin: "0 auto" }}>
-            Submission received. Tweet verified automatically. You will be contacted via X DM if approved.
+            Tweet verified. Your request is under review. You will be contacted via X DM if approved.
           </p>
           <hr className="chain-border" />
           <div className="flex gap-3 justify-center flex-wrap">
-            <a href={`/collab/status?twitter=${encodeURIComponent(form.group_twitter)}`}
-              className="btn-amber pixel text-[7px]">
+            <a
+              href={`/collab/status?twitter=${encodeURIComponent(form.group_twitter)}`}
+              className="btn-amber pixel text-[7px]"
+            >
               CHECK STATUS
             </a>
             <button
-              onClick={() => { setForm(INITIAL); setStatus("idle"); setErrorMsg(null); }}
+              onClick={() => {
+                setForm(INITIAL);
+                setStage("filling");
+                setSubmissionId(null);
+                setVerifCode(null);
+                setTweetUrl("");
+                setErrorMsg(null);
+              }}
               className="btn-outline pixel text-[7px]"
             >
               SUBMIT ANOTHER
@@ -152,7 +274,99 @@ export default function CollabPage() {
     );
   }
 
-  // ── Form ─────────────────────────────────────────────────────────────────────
+  // ── Verifying state ───────────────────────────────────────────────────────
+
+  if (stage === "verifying") {
+    const handle = form.group_twitter.replace(/^@/, "") || "yourproject";
+
+    return (
+      <main className="px-6 py-16 max-w-4xl mx-auto">
+        <div className="mb-10">
+          <p className="pixel text-[8px] text-dim mb-3">// VERIFICATION REQUIRED</p>
+          <h1 className="pixel text-[16px] text-primary leading-loose mb-4">
+            POST YOUR CODE.
+          </h1>
+          <p className="mono text-base text-muted max-w-2xl leading-relaxed">
+            Post this exact tweet from <span style={{ color: "#FFFFFF" }}>@{handle}</span>, then paste the URL below.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+          <div className="md:col-span-2 flex flex-col gap-6">
+
+            {/* Tweet text */}
+            <div className="numina-card bracketed p-6 flex flex-col gap-4">
+              <p className={LABEL}>TWEET THIS EXACT TEXT</p>
+              <textarea
+                readOnly
+                value={tweetText}
+                rows={4}
+                style={{ ...INPUT, resize: "none", color: "#AAAAAA", cursor: "text" }}
+              />
+              <div className="flex gap-3 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  className="btn-amber pixel text-[7px]"
+                  style={{ minHeight: 38 }}
+                >
+                  {copied ? "✓ COPIED" : "COPY TWEET"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenTwitter}
+                  className="btn-outline pixel text-[7px]"
+                  style={{ minHeight: 38 }}
+                >
+                  OPEN TWITTER ↗
+                </button>
+              </div>
+            </div>
+
+            {/* URL verification */}
+            <form onSubmit={handleVerify} className="numina-card bracketed p-6 flex flex-col gap-4">
+              <SectionHeader n="→" title="PASTE YOUR TWEET URL" />
+              <div>
+                <label className={LABEL}>TWEET URL</label>
+                <input
+                  type="text"
+                  value={tweetUrl}
+                  onChange={e => { setTweetUrl(e.target.value); setErrorMsg(null); }}
+                  placeholder="https://x.com/yourproject/status/..."
+                  maxLength={256}
+                  required
+                  style={INPUT}
+                />
+                <p className="mono" style={{ fontSize: 10, color: "#333333", marginTop: 4 }}>
+                  Paste the URL of the tweet you just posted.
+                </p>
+              </div>
+
+              {errorMsg && (
+                <p className="mono text-xs" style={{ color: "#FF4444" }}>
+                  {errorMsg}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn-amber pixel text-[7px]"
+                style={{ minHeight: 44 }}
+              >
+                {loading ? "VERIFYING..." : "► VERIFY & SUBMIT"}
+              </button>
+            </form>
+
+          </div>
+
+          {Sidebar}
+        </div>
+      </main>
+    );
+  }
+
+  // ── Filling state (form) ──────────────────────────────────────────────────
 
   return (
     <main className="px-6 py-16 max-w-4xl mx-auto">
@@ -291,25 +505,9 @@ export default function CollabPage() {
                   style={{ ...INPUT, resize: "vertical" }}
                 />
               </div>
-
-              <div>
-                <label className={LABEL}>VERIFICATION TWEET URL</label>
-                <input
-                  type="text"
-                  value={form.verification_tweet}
-                  onChange={field("verification_tweet")}
-                  placeholder="https://x.com/yourproject/status/..."
-                  maxLength={256}
-                  required
-                  style={INPUT}
-                />
-                <p className="mono" style={{ fontSize: 10, color: "#333333", marginTop: 4 }}>
-                  Tweet must be posted from your group Twitter account and mention @NUMINA.
-                </p>
-              </div>
             </div>
 
-            {status === "error" && errorMsg && (
+            {errorMsg && (
               <p className="mono text-xs" style={{ color: "#FF4444" }}>
                 {errorMsg}
               </p>
@@ -317,65 +515,16 @@ export default function CollabPage() {
 
             <button
               type="submit"
-              disabled={status === "submitting"}
+              disabled={loading}
               className="btn-amber pixel text-[7px]"
               style={{ minHeight: 44 }}
             >
-              {status === "submitting" ? "VERIFYING + SUBMITTING..." : "► SUBMIT REQUEST"}
+              {loading ? "SAVING..." : "► CONTINUE TO VERIFICATION"}
             </button>
           </form>
         </div>
 
-        {/* ── Sidebar ── */}
-        <div className="flex flex-col gap-5">
-          <div className="numina-card bracketed p-5">
-            <p className="pixel text-[7px] text-dim mb-4">// COLLAB RULES</p>
-            <div className="flex flex-col gap-3">
-              {[
-                "Max 50 spots per partner",
-                "Tweet must be from your group account",
-                "GTD and/or FCFS allocation",
-                "All requests reviewed manually",
-                "Approved partners notified via DM",
-              ].map((rule, i) => (
-                <div key={i} className="flex gap-3">
-                  <span className="pixel text-[7px] text-primary shrink-0 mt-0.5">
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                  <span className="mono text-xs" style={{ color: "#555555" }}>
-                    {rule}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="numina-card bracketed p-5">
-            <p className="pixel text-[7px] text-dim mb-4">// WHAT HAPPENS NEXT</p>
-            <div className="flex flex-col gap-3">
-              {[
-                "Tweet auto-verified on submit",
-                "Team reviews request",
-                "Spots allocated on approval",
-                "You get DM on X",
-              ].map((step, i) => (
-                <div key={i} className="flex gap-3 items-start">
-                  <span className="pixel text-[7px] text-dim shrink-0">→</span>
-                  <span className="mono text-xs" style={{ color: "#555555" }}>
-                    {step}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="numina-card bracketed p-5">
-            <p className="pixel text-[7px] text-dim mb-3">// ALREADY SUBMITTED?</p>
-            <a href="/collab/status" className="btn-ghost pixel text-[7px] block text-center" style={{ minHeight: 36, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              CHECK STATUS
-            </a>
-          </div>
-        </div>
+        {Sidebar}
       </div>
     </main>
   );
