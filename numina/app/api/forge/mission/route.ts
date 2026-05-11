@@ -66,11 +66,11 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         model,
-        max_tokens: 120,
+        max_tokens: 60,
         messages: [
           {
             role:    "system",
-            content: "You generate one-sentence missions for AI agents. Be specific and direct. Return only the mission sentence — no quotes, no preamble, no labels.",
+            content: "You generate one-sentence mission questions for AI agents. Be direct and specific. One sentence only — a sharp, concrete question the agent must answer. No quotes, no preamble, no labels, no bullet points.",
           },
           { role: "user", content: prompt },
         ],
