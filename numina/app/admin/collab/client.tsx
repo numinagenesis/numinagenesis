@@ -26,10 +26,22 @@ function relativeTime(iso: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+const WL_SELECT_STYLE: React.CSSProperties = {
+  background:  "#080808",
+  border:      "1px solid #2a2a2a",
+  color:       "#FFFFFF",
+  padding:     "6px 10px",
+  fontFamily:  "Courier New, Courier, monospace",
+  fontSize:    11,
+  outline:     "none",
+  cursor:      "pointer",
+};
+
 function CollabCard({ request }: { request: CollabRequest }) {
-  const [spots, setSpots] = useState(10);
+  const [spots, setSpots]       = useState(10);
+  const [wlType, setWlType]     = useState<"GTD" | "FCFS" | "BOTH">("GTD");
   const [cardStatus, setCardStatus] = useState<CardStatus>("idle");
-  const [result, setResult] = useState<string | null>(null);
+  const [result, setResult]     = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
   if (dismissed) return null;
@@ -44,12 +56,13 @@ function CollabCard({ request }: { request: CollabRequest }) {
           action,
           id: request.id,
           spots_allocated: action === "approve" ? spots : undefined,
+          wl_type:         action === "approve" ? wlType : undefined,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message ?? "Failed");
       setCardStatus("done");
-      setResult(action === "approve" ? `APPROVED — ${spots} spots` : "REJECTED");
+      setResult(action === "approve" ? `APPROVED — ${spots} spots (${wlType})` : "REJECTED");
       setTimeout(() => setDismissed(true), 1500);
     } catch (e) {
       setCardStatus("error");
@@ -117,6 +130,21 @@ function CollabCard({ request }: { request: CollabRequest }) {
         </p>
       ) : (
         <div className="flex items-center gap-3 flex-wrap">
+          {/* WL Type dropdown */}
+          <div className="flex items-center gap-2">
+            <span className="pixel text-[6px] text-dim">WL</span>
+            <select
+              value={wlType}
+              onChange={(e) => setWlType(e.target.value as "GTD" | "FCFS" | "BOTH")}
+              disabled={cardStatus === "loading"}
+              style={{ ...WL_SELECT_STYLE, width: 70 }}
+            >
+              <option value="GTD">GTD</option>
+              <option value="FCFS">FCFS</option>
+              <option value="BOTH">BOTH</option>
+            </select>
+          </div>
+
           {/* Spots input */}
           <div className="flex items-center gap-2">
             <span className="pixel text-[6px] text-dim">SPOTS</span>

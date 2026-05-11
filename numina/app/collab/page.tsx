@@ -10,8 +10,6 @@ type FormState = {
   group_twitter:     string;
   // Section 2 — What You Want
   requested_spots:   string;
-  wl_gtd:            boolean;
-  wl_fcfs:           boolean;
   // Section 3 — You
   submitter_twitter: string;
   notes:             string;
@@ -23,8 +21,6 @@ const INITIAL: FormState = {
   group_name:        "",
   group_twitter:     "",
   requested_spots:   "",
-  wl_gtd:            true,
-  wl_fcfs:           false,
   submitter_twitter: "",
   notes:             "",
 };
@@ -74,10 +70,6 @@ export default function CollabPage() {
     };
   }
 
-  function toggle(key: "wl_gtd" | "wl_fcfs") {
-    return () => setForm(prev => ({ ...prev, [key]: !prev[key] }));
-  }
-
   // Tweet text that will be shown to the user
   const tweetText = verifCode
     ? `Confirming @NUMINA collab request.\nVerification: ${verifCode}`
@@ -102,23 +94,13 @@ export default function CollabPage() {
     e.preventDefault();
     if (loading) return;
 
-    if (!form.wl_gtd && !form.wl_fcfs) {
-      setErrorMsg("Select at least one WL type (GTD or FCFS)");
-      return;
-    }
-
     setLoading(true);
     setErrorMsg(null);
-
-    const wl_types: string[] = [];
-    if (form.wl_gtd)  wl_types.push("GTD");
-    if (form.wl_fcfs) wl_types.push("FCFS");
 
     const payload = {
       group_name:        form.group_name.trim(),
       group_twitter:     form.group_twitter.trim(),
       requested_spots:   form.requested_spots ? parseInt(form.requested_spots, 10) : null,
-      wl_type:           wl_types.join(","),
       submitter_twitter: form.submitter_twitter.trim(),
       notes:             form.notes.trim() || null,
     };
@@ -435,41 +417,6 @@ export default function CollabPage() {
                 />
               </div>
 
-              <div>
-                <label className={LABEL}>WL TYPE</label>
-                <div className="flex gap-6 mt-1">
-                  {(["wl_gtd", "wl_fcfs"] as const).map((key) => {
-                    const label   = key === "wl_gtd" ? "GTD" : "FCFS";
-                    const checked = form[key];
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={toggle(key)}
-                        className="flex items-center gap-2"
-                        style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                      >
-                        <span
-                          style={{
-                            display:    "inline-block",
-                            width:      14,
-                            height:     14,
-                            border:     `1px solid ${checked ? "#FFFFFF" : "#333333"}`,
-                            background: checked ? "#FFFFFF" : "transparent",
-                            flexShrink: 0,
-                          }}
-                        />
-                        <span className="pixel text-[7px]" style={{ color: checked ? "#FFFFFF" : "#444444" }}>
-                          {label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="mono" style={{ fontSize: 10, color: "#333333", marginTop: 6 }}>
-                  GTD = guaranteed allocation. FCFS = first-come-first-served. Select one or both.
-                </p>
-              </div>
             </div>
 
             {/* SECTION 03 — YOU */}

@@ -74,7 +74,6 @@ export async function POST(req: NextRequest) {
     group_name?:        string;
     group_twitter?:     string;
     requested_spots?:   number | null;
-    wl_type?:           string;
     submitter_twitter?: string;
     notes?:             string | null;
     // Step 2 fields
@@ -192,7 +191,6 @@ export async function POST(req: NextRequest) {
   const group_name        = (body.group_name        ?? body.project_name   ?? "").trim();
   const group_twitter     = (body.group_twitter      ?? body.twitter_handle ?? "").trim();
   const requested_spots   =  body.requested_spots   ?? null;
-  const wl_type           = (body.wl_type            ?? "GTD").trim();
   const submitter_twitter = (body.submitter_twitter  ?? "").trim();
   const notes             =  body.notes?.trim()      || null;
 
@@ -240,13 +238,13 @@ export async function POST(req: NextRequest) {
       project_name:       group_name,
       twitter_handle:     handle,
       wallet:             submitterHandle,
-      offering:           wl_type,
+      offering:           "pending",
       verification_tweet: "",   // filled when step 2 completes
       status:             "draft",
       // New columns
       group_name,
       group_twitter:      handle,
-      wl_type,
+      wl_type:            "pending",
       submitter_twitter:  submitterHandle,
       notes,
       requested_spots,

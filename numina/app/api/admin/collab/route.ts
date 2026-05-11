@@ -10,29 +10,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ code: "unauthorized" }, { status: auth.status });
   }
 
-  let body: { action?: string; id?: string; spots_allocated?: number };
+  let body: { action?: string; id?: string; spots_allocated?: number; wl_type?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ code: "invalid_body" }, { status: 400 });
   }
 
-  const { action, id, spots_allocated } = body;
+  const { action, id, spots_allocated, wl_type } = body;
 
   if (!id) {
     return NextResponse.json({ code: "missing_id", message: "id is required" }, { status: 400 });
   }
 
   if (action === "approve") {
-    const spots = Math.min(Math.max(1, Math.floor(spots_allocated ?? 1)), 50);
+    const spots   = Math.min(Math.max(1, Math.floor(spots_allocated ?? 1)), 50);
+    const wlType  = ["GTD", "FCFS", "BOTH"].includes(wl_type ?? "") ? wl_type! : "GTD";
 
     const { error } = await supabaseAdmin
       .from("collab_requests")
       .update({
-        status: "approved",
+        status:          "approved",
         spots_allocated: spots,
-        reviewed_by: auth.address,
-        resolved_at: new Date().toISOString(),
+        wl_type:         wlType,
+        offering:        wlType,   // keep legacy column in sync
+        reviewed_by:     auth.address,
+        resolved_at:     new Date().toISOString(),
       })
       .eq("id", id);
 
