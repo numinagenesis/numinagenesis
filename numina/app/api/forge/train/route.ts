@@ -18,9 +18,20 @@ export async function POST(req: NextRequest) {
   const wallet = auth.address;
 
   let task: string;
+  let missionMode = false;
+  let missionText = "";
+  let userResponse = "";
+
   try {
     const body = await req.json();
-    task = typeof body.input === "string" ? body.input.trim() : "";
+    if (typeof body.mission === "string" && typeof body.user_response === "string") {
+      missionText  = body.mission.trim();
+      userResponse = body.user_response.trim();
+      missionMode  = true;
+      task         = missionText + "\n\nRESPONSE: " + userResponse;
+    } else {
+      task = typeof body.input === "string" ? body.input.trim() : "";
+    }
   } catch {
     return NextResponse.json({ code: "invalid_body" }, { status: 400 });
   }
@@ -58,12 +69,25 @@ export async function POST(req: NextRequest) {
 
   const tier     = (agent?.tier     as string | null) ?? "RECRUIT";
   const division = (agent?.division as string | null) ?? "UNKNOWN";
-  const fragments = FRAGMENT_RATES[tier] ?? DEFAULT_FRAGMENTS;
+  let fragments  = FRAGMENT_RATES[tier] ?? DEFAULT_FRAGMENTS;
+
+  // Mission mode: halve fragments for responses under 50 chars
+  if (missionMode && userResponse.length < 50) {
+    fragments = Math.floor(fragments * 0.5);
+  }
 
   // OpenRouter LLM call
   let output: string;
   try {
-    const systemPrompt = `You are a NUMINA agent. Division: ${division.toUpperCase()}. Tier: ${tier.toUpperCase()}. CC0 - everything you produce belongs to the world.\nBe direct. Deliver real, usable output. No fluff. No disclaimers. No preamble.`;
+    const systemPrompt = missionMode
+      ? `You are a NUMINA agent evaluator. Division: ${division.toUpperCase()}. Tier: ${tier.toUpperCase()}.
+You received a mission briefing and an agent response. Evaluate the response in 2-3 sentences.
+Be direct: acknowledge what was strong, identify gaps, suggest one concrete improvement. No preamble.`
+      : `You are a NUMINA agent. Division: ${division.toUpperCase()}. Tier: ${tier.toUpperCase()}. CC0 - everything you produce belongs to the world.\nBe direct. Deliver real, usable output. No fluff. No disclaimers. No preamble.`;
+
+    const userContent = missionMode
+      ? `MISSION: ${missionText}\n\nAGENT RESPONSE: ${userResponse}`
+      : task;
 
     const llmRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -78,7 +102,7 @@ export async function POST(req: NextRequest) {
         max_tokens: 500,
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user",   content: task },
+          { role: "user",   content: userContent },
         ],
       }),
     });

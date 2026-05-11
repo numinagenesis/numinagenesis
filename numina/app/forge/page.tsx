@@ -10,7 +10,6 @@ import { DIVISIONS, TIERS, type DivisionKey, type TierKey } from "@/lib/division
 import { WL_THRESHOLD, type PreMintAgent } from "@/lib/supabase-forge";
 
 const DAILY_LIMIT = 10;
-const INPUT_MAX   = 200;
 
 // ÔöÇÔöÇ Helpers ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
 
@@ -193,12 +192,17 @@ export default function ForgePage() {
   const [summonError,  setSummonError]  = useState("");
 
   // training state
-  const [taskInput,          setTaskInput]          = useState("");
-  const [running,            setRunning]            = useState(false);
-  const [taskOutput,         setTaskOutput]         = useState("");
-  const [trainError,         setTrainError]         = useState("");
-  const [tasksToday,         setTasksToday]         = useState(0);
-  const [lastFragsEarned,    setLastFragsEarned]    = useState<number | null>(null);
+  const [taskOutput,      setTaskOutput]      = useState("");
+  const [trainError,      setTrainError]      = useState("");
+  const [tasksToday,      setTasksToday]      = useState(0);
+  const [lastFragsEarned, setLastFragsEarned] = useState<number | null>(null);
+
+  // mission state
+  type MissionState = "idle" | "loading_mission" | "mission_ready" | "submitting";
+  const [missionState,    setMissionState]    = useState<MissionState>("idle");
+  const [currentMission,  setCurrentMission]  = useState("");
+  const [missionResponse, setMissionResponse] = useState("");
+  const [missionError,    setMissionError]    = useState("");
 
   // tab state
   const [activeTab,   setActiveTab]   = useState<"deploy" | "history">("deploy");
@@ -259,29 +263,58 @@ export default function ForgePage() {
   }
 
   // ÔöÇÔöÇ Run task ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
-  async function runTask() {
-    if (!taskInput.trim() || running || tasksToday >= DAILY_LIMIT) return;
-    setRunning(true);
+  // ── Get mission ───────────────────────────────────────────────────────────────
+  async function getMission() {
+    setMissionState("loading_mission");
+    setMissionError("");
+    setCurrentMission("");
+    setMissionResponse("");
+    setTaskOutput("");
+    setTrainError("");
+    setLastFragsEarned(null);
+    try {
+      const res  = await fetch("/api/forge/mission", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setMissionError(data.message ?? "Failed to generate mission");
+        setMissionState("idle");
+        return;
+      }
+      setCurrentMission(data.mission ?? "");
+      setMissionState("mission_ready");
+    } catch {
+      setMissionError("Network error - try again");
+      setMissionState("idle");
+    }
+  }
+
+  // ── Submit mission response ───────────────────────────────────────────────────
+  async function submitResponse() {
+    if (!missionResponse.trim() || missionState !== "mission_ready" || tasksToday >= DAILY_LIMIT) return;
+    setMissionState("submitting");
     setTrainError("");
     setLastFragsEarned(null);
     try {
       const res  = await fetch("/api/forge/train", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ input: taskInput.trim() }),
+        body:    JSON.stringify({ mission: currentMission, user_response: missionResponse.trim() }),
       });
       const data = await res.json();
-      if (!res.ok) { setTrainError(data.error ?? "Task failed"); return; }
+      if (!res.ok) {
+        setTrainError(data.error ?? "Task failed");
+        setMissionState("mission_ready");
+        return;
+      }
       setTaskOutput(data.output ?? "");
       setFragments(data.new_balance ?? fragments);
       setTasksToday(data.tasks_today ?? tasksToday + 1);
       setLastFragsEarned(data.fragments_earned ?? null);
       setHistoryKey((k) => k + 1);
-      setActiveTab("history");
+      setMissionState("idle");
     } catch {
       setTrainError("Network error - try again");
-    } finally {
-      setRunning(false);
+      setMissionState("mission_ready");
     }
   }
 
@@ -511,7 +544,7 @@ export default function ForgePage() {
           {/* ÔöÇÔöÇ DEPLOY tab ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ */}
           {activeTab === "deploy" && (
             <>
-              {/* Task input */}
+              {/* Mission system */}
               <div className="numina-card bracketed p-5 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <p className="pixel text-[7px] text-dim">// DEPLOY TASK</p>
@@ -529,49 +562,103 @@ export default function ForgePage() {
                   </p>
                 )}
 
-                <textarea
-                  value={taskInput}
-                  onChange={(e) => setTaskInput(e.target.value.slice(0, INPUT_MAX))}
-                  disabled={running || atLimit}
-                  rows={4}
-                  maxLength={INPUT_MAX}
-                  placeholder={
-                    atLimit
-                      ? "Daily limit reached. Come back tomorrow."
-                      : div
-                      ? `What do you want your ${div.name} agent to do?`
-                      : "Enter a task..."
-                  }
-                  className="w-full mono text-sm px-3 py-2 outline-none resize-none"
-                  style={{
-                    background: "#080808",
-                    border:     "1px solid #222222",
-                    color:      "#FFFFFF",
-                    opacity:    atLimit ? 0.4 : 1,
-                  }}
-                />
+                {/* IDLE: get mission button */}
+                {missionState === "idle" && (
+                  <>
+                    <button
+                      onClick={getMission}
+                      disabled={atLimit}
+                      className={atLimit ? "btn-outline w-full" : "btn-amber w-full"}
+                      style={{ opacity: atLimit ? 0.4 : 1, fontSize: 11, padding: "16px 32px" }}
+                    >
+                      {atLimit ? "DAILY LIMIT REACHED" : "&gt; GET MISSION"}
+                    </button>
+                    {missionError && (
+                      <span className="mono text-[10px]" style={{ color: "#FFFFFF" }}>x {missionError}</span>
+                    )}
+                  </>
+                )}
 
-                <div className="flex justify-between items-center">
-                  <span className="mono text-[10px] text-dim">{taskInput.length}/{INPUT_MAX}</span>
-                  {trainError && (
-                    <span className="mono text-[10px]" style={{ color: "#FFFFFF" }}>x {trainError}</span>
-                  )}
-                </div>
+                {/* LOADING: spinner */}
+                {missionState === "loading_mission" && (
+                  <div className="flex items-center justify-center py-4">
+                    <span className="pixel text-[8px] text-dim">
+                      AGENT GENERATING MISSION<span className="blink">...</span>
+                    </span>
+                  </div>
+                )}
 
-                <button
-                  onClick={runTask}
-                  disabled={!taskInput.trim() || running || atLimit}
-                  className={atLimit ? "btn-outline w-full" : "btn-amber w-full"}
-                  style={{ opacity: (!taskInput.trim() || atLimit) ? 0.4 : 1 }}
-                >
-                  {running ? (
-                    <span>AGENT WORKING<span className="blink">...</span></span>
-                  ) : atLimit ? (
-                    "DAILY LIMIT REACHED"
-                  ) : (
-                    "&gt; RUN TASK"
-                  )}
-                </button>
+                {/* MISSION READY / SUBMITTING */}
+                {(missionState === "mission_ready" || missionState === "submitting") && (
+                  <>
+                    {/* Mission briefing */}
+                    <div style={{ background: "#080808", border: "1px solid #222222", padding: "12px 14px" }}>
+                      <p className="pixel text-[7px] text-dim mb-2">// MISSION BRIEFING</p>
+                      <p className="mono text-[11px]" style={{ color: "#FFFFFF", lineHeight: 1.7 }}>
+                        {currentMission}
+                      </p>
+                    </div>
+
+                    {/* Response textarea */}
+                    <textarea
+                      value={missionResponse}
+                      onChange={(e) => setMissionResponse(e.target.value)}
+                      disabled={missionState === "submitting"}
+                      rows={4}
+                      placeholder="Your response to this mission..."
+                      className="w-full mono text-sm px-3 py-2 outline-none resize-none"
+                      style={{
+                        background: "#080808",
+                        border:     "1px solid #222222",
+                        color:      "#FFFFFF",
+                      }}
+                    />
+
+                    {/* Char counter + new mission link */}
+                    <div className="flex justify-between items-center">
+                      <span
+                        className="mono text-[10px]"
+                        style={{ color: missionResponse.length < 50 ? "#666666" : "#AAAAAA" }}
+                      >
+                        {missionResponse.length} chars
+                        {missionResponse.length > 0 && missionResponse.length < 50
+                          ? ` — 50 min for full reward`
+                          : ""}
+                      </span>
+                      <button
+                        onClick={getMission}
+                        disabled={missionState === "submitting"}
+                        className="mono text-[10px]"
+                        style={{
+                          background: "none",
+                          border:     "none",
+                          color:      "#444444",
+                          cursor:     missionState === "submitting" ? "not-allowed" : "pointer",
+                          padding:    0,
+                        }}
+                      >
+                        get new mission
+                      </button>
+                    </div>
+
+                    {trainError && (
+                      <span className="mono text-[10px]" style={{ color: "#FFFFFF" }}>x {trainError}</span>
+                    )}
+
+                    <button
+                      onClick={submitResponse}
+                      disabled={!missionResponse.trim() || missionState === "submitting"}
+                      className="btn-amber w-full"
+                      style={{ opacity: !missionResponse.trim() ? 0.4 : 1 }}
+                    >
+                      {missionState === "submitting" ? (
+                        <span>AGENT WORKING<span className="blink">...</span></span>
+                      ) : (
+                        "&gt; SUBMIT RESPONSE"
+                      )}
+                    </button>
+                  </>
+                )}
               </div>
 
               {/* Task output */}
