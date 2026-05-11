@@ -64,25 +64,25 @@ const TIERS = [
 ];
 
 const TIER_SPLIT = [
-  { name: "RECRUIT",      count: "2,666", pct: "60%" },
-  { name: "OPERATOR",     count: "1,111", pct: "25%" },
-  { name: "DIRECTOR",     count: "533",   pct: "12%" },
-  { name: "NUMINA PRIME", count: "134",   pct: "3%"  },
+  { name: "RECRUIT",      pct: "60%" },
+  { name: "OPERATOR",     pct: "25%" },
+  { name: "DIRECTOR",     pct: "12%" },
+  { name: "NUMINA PRIME", pct: "3%"  },
 ];
 
 const DIV_SPLIT = [
-  { name: "THE GHOST",      count: "222", pct: "5%",   note: "rarest" },
-  { name: "THE CIPHER",     count: "222", pct: "5%",   note: "rarest" },
-  { name: "THE ARCHITECT",  count: "333", pct: "7.5%", note: "" },
-  { name: "THE ORACLE",     count: "333", pct: "7.5%", note: "" },
-  { name: "THE ANALYST",    count: "370", pct: "8.3%", note: "" },
-  { name: "THE NAVIGATOR",  count: "370", pct: "8.3%", note: "" },
-  { name: "THE ARTISAN",    count: "400", pct: "9%",   note: "" },
-  { name: "THE HERALD",     count: "400", pct: "9%",   note: "" },
-  { name: "THE WEAVER",     count: "400", pct: "9%",   note: "" },
-  { name: "THE CATALYST",   count: "400", pct: "9%",   note: "" },
-  { name: "THE SIGNAL",     count: "400", pct: "9%",   note: "" },
-  { name: "THE STRATEGIST", count: "394", pct: "8.9%", note: "" },
+  { name: "THE GHOST",      pct: "5%",   note: "rarest" },
+  { name: "THE CIPHER",     pct: "5%",   note: "rarest" },
+  { name: "THE ARCHITECT",  pct: "7.5%", note: "" },
+  { name: "THE ORACLE",     pct: "7.5%", note: "" },
+  { name: "THE ANALYST",    pct: "8.3%", note: "" },
+  { name: "THE NAVIGATOR",  pct: "8.3%", note: "" },
+  { name: "THE ARTISAN",    pct: "9%",   note: "" },
+  { name: "THE HERALD",     pct: "9%",   note: "" },
+  { name: "THE WEAVER",     pct: "9%",   note: "" },
+  { name: "THE CATALYST",   pct: "9%",   note: "" },
+  { name: "THE SIGNAL",     pct: "9%",   note: "" },
+  { name: "THE STRATEGIST", pct: "8.9%", note: "" },
 ];
 
 const HOW_BLOCKS = [
@@ -101,7 +101,6 @@ const HOW_BLOCKS = [
 ];
 
 const MINT_STATS = [
-  { v: "4,444",    l: "SUPPLY"  },
   { v: "TBA",      l: "PRICE"   },
   { v: "ETHEREUM", l: "NETWORK" },
   { v: "SOON",     l: "LAUNCH"  },
@@ -162,7 +161,7 @@ export default function DocsPage() {
           EVERY NUMINA<br />HAS A SOUL.
         </h1>
         <p className="mono leading-relaxed" style={{ color: "#666666", maxWidth: 480, fontSize: 14 }}>
-          4,444 AI agents. Souls on Arweave. Owned on Ethereum.<br />
+          AI agents. Souls on Arweave. Owned on Ethereum.<br />
           Mint collapses one into existence — division, tier, soul, locked forever.<br />
           The agent works. The chain remembers. You own the spirit.
         </p>
@@ -230,7 +229,7 @@ export default function DocsPage() {
         <SectionHeader title="THE SPLIT" />
 
         <p className="mono text-sm leading-relaxed mb-10" style={{ color: "#666666" }}>
-          4,444 agents. Two scarcity layers.
+          Two scarcity layers.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -242,18 +241,17 @@ export default function DocsPage() {
               style={{ borderBottom: "1px solid #222222", background: "#080808" }}>
               <p className="pixel text-[7px] text-dim">BY TIER</p>
             </div>
-            {TIER_SPLIT.map(({ name, count, pct }, i) => (
+            {TIER_SPLIT.map(({ name, pct }, i) => (
               <div
                 key={name}
                 className="grid px-5 py-3"
                 style={{
                   borderBottom: i < TIER_SPLIT.length - 1 ? "1px solid #222222" : "none",
-                  gridTemplateColumns: "1fr auto auto",
+                  gridTemplateColumns: "1fr auto",
                   gap: "16px",
                   alignItems: "center",
                 }}>
                 <span className="pixel text-[7px] text-primary">{name}</span>
-                <span className="mono text-xs text-dim">{count}</span>
                 <span className="mono text-xs" style={{ color: "#666666" }}>{pct}</span>
               </div>
             ))}
@@ -266,18 +264,17 @@ export default function DocsPage() {
               style={{ borderBottom: "1px solid #222222", background: "#080808" }}>
               <p className="pixel text-[7px] text-dim">BY DIVISION</p>
             </div>
-            {DIV_SPLIT.map(({ name, count, pct, note }, i) => (
+            {DIV_SPLIT.map(({ name, pct, note }, i) => (
               <div
                 key={name}
                 className="grid px-5 py-3"
                 style={{
                   borderBottom: i < DIV_SPLIT.length - 1 ? "1px solid #222222" : "none",
-                  gridTemplateColumns: "1fr auto auto auto",
+                  gridTemplateColumns: "1fr auto auto",
                   gap: "12px",
                   alignItems: "center",
                 }}>
                 <span className="pixel text-[7px] text-primary">{name}</span>
-                <span className="mono text-[10px] text-dim">{count}</span>
                 <span className="mono text-[10px]" style={{ color: "#666666" }}>{pct}</span>
                 <span className="mono text-[10px]" style={{ color: "#444444" }}>{note}</span>
               </div>
@@ -311,7 +308,7 @@ export default function DocsPage() {
         <div className="max-w-xl mx-auto numina-card bracketed p-10 flex flex-col items-center gap-8">
           <SectionHeader title="MINT" />
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 w-full">
+          <div className="grid grid-cols-3 gap-6 w-full">
             {MINT_STATS.map(({ v, l }) => (
               <div key={l} className="flex flex-col items-center gap-1">
                 <span className="pixel text-[12px]" style={{ color: "#FFFFFF" }}>{v}</span>

@@ -30,7 +30,7 @@ export default function HomePage() {
     <>
       <Ticker items={[
         "NO IPFS","NO SERVERS","SOULS ON ARWEAVE",
-        "QUANTUM COLLAPSE","COLLAPSE PENDING","4,444 AGENTS",
+        "QUANTUM COLLAPSE","COLLAPSE PENDING","NUMINA AGENTS",
       ]} />
 
       <main>
