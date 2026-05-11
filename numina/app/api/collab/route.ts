@@ -55,7 +55,6 @@ export async function POST(req: NextRequest) {
     requested_spots?:    number | null;
     wl_type?:            string;
     submitter_twitter?:  string;
-    wallet?:             string;
     notes?:              string | null;
     verification_tweet?: string;
     // Legacy compat
@@ -78,7 +77,6 @@ export async function POST(req: NextRequest) {
   const requested_spots   = body.requested_spots    ?? null;
   const wl_type           = (body.wl_type           ?? "GTD").trim();
   const submitter_twitter = (body.submitter_twitter  ?? "").trim();
-  const wallet            = (body.wallet            ?? "").trim();
   const notes             = body.notes?.trim()      || null;
   const verification_tweet = (body.verification_tweet ?? "").trim();
 
@@ -86,7 +84,6 @@ export async function POST(req: NextRequest) {
   if (!group_name)         return NextResponse.json({ code: "missing_field", message: "Group name is required" },           { status: 400 });
   if (!group_twitter)      return NextResponse.json({ code: "missing_field", message: "Group Twitter handle is required" }, { status: 400 });
   if (!submitter_twitter)  return NextResponse.json({ code: "missing_field", message: "Your Twitter handle is required" },  { status: 400 });
-  if (!wallet)             return NextResponse.json({ code: "missing_field", message: "Wallet address is required" },       { status: 400 });
   if (!verification_tweet) return NextResponse.json({ code: "missing_field", message: "Verification tweet is required" },  { status: 400 });
 
   if (requested_spots !== null && requested_spots > 50) {
@@ -140,7 +137,7 @@ export async function POST(req: NextRequest) {
       // Core / legacy columns (kept for admin UI compat)
       project_name:       group_name,
       twitter_handle:     handle,
-      wallet:             wallet.toLowerCase(),
+      wallet:             submitterHandle,
       offering:           wl_type,
       verification_tweet,
       status:             "pending",

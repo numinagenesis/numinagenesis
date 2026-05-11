@@ -14,7 +14,6 @@ type FormState = {
   wl_fcfs:            boolean;
   // Section 3 — You
   submitter_twitter:  string;
-  wallet:             string;
   notes:              string;
   verification_tweet: string;
 };
@@ -28,7 +27,6 @@ const INITIAL: FormState = {
   wl_gtd:             true,
   wl_fcfs:            false,
   submitter_twitter:  "",
-  wallet:             "",
   notes:              "",
   verification_tweet: "",
 };
@@ -99,7 +97,6 @@ export default function CollabPage() {
       requested_spots:    form.requested_spots ? parseInt(form.requested_spots, 10) : null,
       wl_type:            wl_types.join(","),
       submitter_twitter:  form.submitter_twitter.trim(),
-      wallet:             form.wallet.trim(),
       notes:              form.notes.trim() || null,
       verification_tweet: form.verification_tweet.trim(),
     };
@@ -279,19 +276,6 @@ export default function CollabPage() {
                 <p className="mono" style={{ fontSize: 10, color: "#333333", marginTop: 4 }}>
                   The person submitting this request (not the project handle)
                 </p>
-              </div>
-
-              <div>
-                <label className={LABEL}>WALLET ADDRESS</label>
-                <input
-                  type="text"
-                  value={form.wallet}
-                  onChange={field("wallet")}
-                  placeholder="0x..."
-                  maxLength={64}
-                  required
-                  style={INPUT}
-                />
               </div>
 
               <div>
