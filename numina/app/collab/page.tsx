@@ -245,7 +245,7 @@ export default function CollabPage() {
             REQUEST SENT.
           </p>
           <p className="mono text-sm" style={{ color: "#555555", maxWidth: 360, margin: "0 auto" }}>
-            Tweet verified. Your request is under review. You will be contacted via X DM if approved.
+            Tweet verified. Your request is under review. Check your status anytime at /collab/status
           </p>
           <hr className="chain-border" />
           <div className="flex gap-3 justify-center flex-wrap">

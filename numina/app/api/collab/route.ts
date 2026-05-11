@@ -211,17 +211,21 @@ export async function POST(req: NextRequest) {
   const handle          = group_twitter.replace(/^@/, "").toLowerCase();
   const submitterHandle = submitter_twitter.replace(/^@/, "").toLowerCase();
 
-  // Check if this group twitter already has an approved request
+  // One submission per group Twitter (draft, pending, or approved — not rejected)
   const { data: existing } = await supabaseAdmin
     .from("collab_requests")
-    .select("id, status")
-    .eq("twitter_handle", handle)
-    .eq("status", "approved")
+    .select("id")
+    .ilike("group_twitter", handle)
+    .neq("status", "rejected")
+    .limit(1)
     .maybeSingle();
 
   if (existing) {
     return NextResponse.json(
-      { code: "already_approved", message: "This Twitter account already has an approved collaboration" },
+      {
+        code:    "already_exists",
+        message: `A request from @${handle} already exists. Check status at /collab/status`,
+      },
       { status: 400 }
     );
   }
