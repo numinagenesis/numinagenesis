@@ -90,6 +90,13 @@ export async function POST(req: NextRequest) {
       }),
     });
 
+    if (llmRes.status === 429) {
+      return NextResponse.json(
+        { code: "rate_limited", error: "Agent is busy. Try again in 30 seconds." },
+        { status: 429 }
+      );
+    }
+
     const llmData = await llmRes.json();
     output = llmData.choices?.[0]?.message?.content ?? "[No output returned]";
   } catch {

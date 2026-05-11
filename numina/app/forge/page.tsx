@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useDisconnect } from "wagmi";
 import AgentCard from "@/components/AgentCard";
@@ -198,11 +198,17 @@ export default function ForgePage() {
   const [lastFragsEarned, setLastFragsEarned] = useState<number | null>(null);
 
   // mission state
-  type MissionState = "idle" | "loading_mission" | "mission_ready" | "submitting";
+  type MissionState = "idle" | "loading_mission" | "mission_ready" | "submitting" | "rate_limited";
   const [missionState,    setMissionState]    = useState<MissionState>("idle");
   const [currentMission,  setCurrentMission]  = useState("");
   const [missionResponse, setMissionResponse] = useState("");
   const [missionError,    setMissionError]    = useState("");
+
+  // rate-limit countdown
+  const RATE_LIMIT_SECS = 30;
+  const [countdown,       setCountdown]       = useState(0);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pendingRetry = useRef<"mission" | "deploy" | null>(null);
 
   // tab state
   const [activeTab,   setActiveTab]   = useState<"deploy" | "history">("deploy");
@@ -263,6 +269,29 @@ export default function ForgePage() {
   }
 
   // ── Run task ──────────────────────────────────────────────────────────────
+  // ── Rate-limit countdown + auto-retry ────────────────────────────────────────
+  function startRateLimit(retryFor: "mission" | "deploy") {
+    pendingRetry.current = retryFor;
+    setMissionState("rate_limited");
+    setCountdown(RATE_LIMIT_SECS);
+
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    countdownRef.current = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(countdownRef.current!);
+          countdownRef.current = null;
+          // auto-retry
+          if (pendingRetry.current === "mission") getMission();
+          else if (pendingRetry.current === "deploy") submitResponse();
+          pendingRetry.current = null;
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }
+
   // ── Get mission ───────────────────────────────────────────────────────────────
   async function getMission() {
     setMissionState("loading_mission");
@@ -275,6 +304,7 @@ export default function ForgePage() {
     try {
       const res  = await fetch("/api/forge/mission", { method: "POST" });
       const data = await res.json();
+      if (res.status === 429) { startRateLimit("mission"); return; }
       if (!res.ok) {
         setMissionError(data.message ?? "Failed to generate mission");
         setMissionState("idle");
@@ -303,6 +333,7 @@ export default function ForgePage() {
         body:    JSON.stringify({ input: missionResponse.trim() }),
       });
       const data = await res.json();
+      if (res.status === 429 && data.code === "rate_limited") { startRateLimit("deploy"); return; }
       if (!res.ok) {
         setTrainError(data.error ?? "Task failed");
         setMissionState("mission_ready");
@@ -417,16 +448,6 @@ export default function ForgePage() {
 
   return (
     <>
-    {burnModal && (
-      <BurnModal
-        agent={agent}
-        fragments={fragments}
-        burning={burning}
-        burnError={burnError}
-        onConfirm={burnAgent}
-        onClose={() => { if (!burning) setBurnModal(false); }}
-      />
-    )}
     <main className="px-6 py-12 max-w-4xl mx-auto">
       <div className="flex justify-end mb-4">
         <button
@@ -489,37 +510,6 @@ export default function ForgePage() {
             </div>
             <hr className="chain-border" />
             <FragmentMeter balance={fragments} />
-          </div>
-
-          {/* Burn button */}
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => { setBurnModal(true); setBurnError(""); }}
-              disabled={!!burnCooldownNext && new Date(burnCooldownNext).getTime() > Date.now()}
-              className="mono text-[9px]"
-              style={{
-                background: "none",
-                border:     "1px solid #330000",
-                color:      "#994444",
-                padding:    "4px 10px",
-                cursor:     (!!burnCooldownNext && new Date(burnCooldownNext).getTime() > Date.now()) ? "not-allowed" : "pointer",
-                opacity:    (!!burnCooldownNext && new Date(burnCooldownNext).getTime() > Date.now()) ? 0.4 : 1,
-              }}
-            >
-              x BURN AGENT
-            </button>
-            <a
-              href="/forge/swap"
-              className="mono text-[9px]"
-              style={{ color: "#555555", textDecoration: "none" }}
-            >
-              ⇄ SWAP
-            </a>
-            {burnCooldownNext && new Date(burnCooldownNext).getTime() > Date.now() && (
-              <span className="mono text-[9px]" style={{ color: "#664444" }}>
-                Next burn in {hoursUntil(burnCooldownNext)}h
-              </span>
-            )}
           </div>
 
           {/* Tab bar */}
@@ -587,6 +577,26 @@ export default function ForgePage() {
                     <span className="pixel text-[8px] text-dim">
                       AGENT GENERATING MISSION<span className="blink">...</span>
                     </span>
+                  </div>
+                )}
+
+                {/* RATE LIMITED: countdown + auto-retry */}
+                {missionState === "rate_limited" && (
+                  <div className="flex flex-col items-center gap-2 py-4">
+                    <span className="pixel text-[8px]" style={{ color: "#FFFFFF" }}>
+                      // AGENT BUSY — Try again in {countdown}s
+                    </span>
+                    <div style={{ background: "#0A0A0A", height: 2, width: "100%", border: "1px solid #222222" }}>
+                      <div
+                        style={{
+                          height: "100%",
+                          background: "#444444",
+                          width: `${(countdown / RATE_LIMIT_SECS) * 100}%`,
+                          transition: "width 1s linear",
+                        }}
+                      />
+                    </div>
+                    <span className="mono text-[10px] text-dim">auto-retrying...</span>
                   </div>
                 )}
 
