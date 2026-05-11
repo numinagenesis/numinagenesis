@@ -80,7 +80,7 @@ export default function CollabPage() {
 
   // Tweet text that will be shown to the user
   const tweetText = verifCode
-    ? `Confirming @NUMINA collab request.\nVerification: ${verifCode}\nnuminagenesis.vercel.app/collab`
+    ? `Confirming @NUMINA collab request.\nVerification: ${verifCode}`
     : "";
 
   function handleCopy() {
