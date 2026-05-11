@@ -3,6 +3,13 @@ import { requireUser } from "@/lib/session-user";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { FRAGMENT_RATES } from "@/lib/fragment-rates";
 
+function llmConfig() {
+  if (process.env.GROQ_API_KEY) {
+    return { url: "https://api.groq.com/openai/v1/chat/completions", key: process.env.GROQ_API_KEY, model: "llama-3.1-8b-instant" };
+  }
+  return { url: "https://openrouter.ai/api/v1/chat/completions", key: process.env.OPENROUTER_API_KEY ?? "", model: "openrouter/auto" };
+}
+
 const DEFAULT_FRAGMENTS = 10;
 
 // Max tasks per wallet per day
@@ -72,16 +79,15 @@ export async function POST(req: NextRequest) {
 
     const userContent = task;
 
-    const llmRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const { url, key, model } = llmConfig();
+    const llmRes = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type":  "application/json",
-        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        "HTTP-Referer":  "https://numinagenesis.vercel.app",
-        "X-Title":       "NUMINA Forge",
+        "Authorization": `Bearer ${key}`,
       },
       body: JSON.stringify({
-        model:      "openrouter/auto",
+        model,
         max_tokens: 500,
         messages: [
           { role: "system", content: systemPrompt },

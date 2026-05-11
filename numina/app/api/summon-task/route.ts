@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DIVISIONS, type DivisionKey } from "@/lib/divisions";
 
+function llmConfig() {
+  if (process.env.GROQ_API_KEY) {
+    return { url: "https://api.groq.com/openai/v1/chat/completions", key: process.env.GROQ_API_KEY, model: "llama-3.1-8b-instant" };
+  }
+  return { url: "https://openrouter.ai/api/v1/chat/completions", key: process.env.OPENROUTER_API_KEY ?? "", model: "openrouter/free" };
+}
+
 // ── Rate limiting (in-memory, per IP) ────────────────────────────────────────
 
 const RATE_LIMIT    = 5;
@@ -87,8 +94,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Unknown division: ${division}` }, { status: 400 });
   }
 
-  if (!process.env.OPENROUTER_API_KEY) {
-    return NextResponse.json({ error: "OPENROUTER_API_KEY not configured." }, { status: 500 });
+  if (!process.env.GROQ_API_KEY && !process.env.OPENROUTER_API_KEY) {
+    return NextResponse.json({ error: "No LLM API key configured." }, { status: 500 });
   }
 
   // Pick one persona randomly, fetch it, fall back if needed
@@ -133,16 +140,15 @@ If it can be said in 3 lines, use 3 lines.
 You are a specialist, not a teacher.
 Act like it.`;
 
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+  const { url, key, model } = llmConfig();
+  const res = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type":  "application/json",
-      "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-      "HTTP-Referer":  "https://numinagenesis.vercel.app",
-      "X-Title":       "NUMINA Agent",
+      "Authorization": `Bearer ${key}`,
     },
     body: JSON.stringify({
-      model:      "openrouter/free",
+      model,
       max_tokens: 500,
       messages: [
         { role: "system", content: systemPrompt },
@@ -155,7 +161,7 @@ Act like it.`;
 
   if (!data.choices?.[0]) {
     return NextResponse.json(
-      { error: `OpenRouter error: ${JSON.stringify(data)}` },
+      { error: `LLM error: ${JSON.stringify(data)}` },
       { status: 502 }
     );
   }
