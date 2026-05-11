@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/session-user";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { FRAGMENT_RATES } from "@/lib/fragment-rates";
+import { getConfig } from "@/lib/config-cache";
 
 function llmConfig() {
   if (process.env.GROQ_API_KEY) {
@@ -70,7 +71,32 @@ export async function POST(req: NextRequest) {
 
   const tier     = (agent?.tier     as string | null) ?? "RECRUIT";
   const division = (agent?.division as string | null) ?? "UNKNOWN";
-  const fragments = FRAGMENT_RATES[tier] ?? DEFAULT_FRAGMENTS;
+  const baseFragments = FRAGMENT_RATES[tier] ?? DEFAULT_FRAGMENTS;
+
+  // Quantum event multiplier
+  type QuantumEvent = { active: boolean; multiplier: number; expires_at: string | null };
+  let quantumMultiplier = 1;
+  try {
+    const qe = await getConfig<QuantumEvent>("quantum_event");
+    if (qe.active && qe.expires_at) {
+      if (new Date(qe.expires_at).getTime() > Date.now()) {
+        quantumMultiplier = qe.multiplier ?? 1;
+      } else {
+        // Auto-deactivate expired event (non-fatal, best-effort)
+        void (async () => {
+          try {
+            await supabaseAdmin
+              .from("config")
+              .upsert({ key: "quantum_event", value: { ...qe, active: false }, updated_at: new Date().toISOString() }, { onConflict: "key" });
+          } catch { /* ignore */ }
+        })();
+      }
+    }
+  } catch {
+    // quantum_event not seeded yet — normal, use base rate
+  }
+
+  const fragments = baseFragments * quantumMultiplier;
 
   // OpenRouter LLM call
   let output: string;

@@ -13,6 +13,7 @@ const ALLOWED_KEYS = [
   "moderation",
   "forge_config",
   "supply_config",
+  "quantum_event",
 ] as const;
 
 type AllowedKey = (typeof ALLOWED_KEYS)[number];

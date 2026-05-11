@@ -22,6 +22,7 @@ import {
   
   CollabQueueCard,
   RaffleCard,
+  QuantumEventCard,
 
   type FullConfig,
 } from "./cards";
@@ -185,6 +186,7 @@ function StateC({
         <hr className="chain-border flex-1" />
       </div>
       <div className="flex flex-col gap-6">
+        <QuantumEventCard />
         <CollabQueueCard />
         <RaffleCard />
       </div>

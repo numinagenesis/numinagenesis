@@ -1107,3 +1107,165 @@ export function SupplyConfigCard({ initial }: { initial?: SupplyConfig }) {
     </AdminCard>
   );
 }
+
+// ── Quantum Event Card ────────────────────────────────────────────────────────
+
+type QuantumEventConfig = {
+  active:     boolean;
+  multiplier: number;
+  expires_at: string | null;
+};
+
+const QE_DEFAULTS: QuantumEventConfig = { active: false, multiplier: 2, expires_at: null };
+
+function fmtTimeRemaining(expiresAt: string | null): string {
+  if (!expiresAt) return "--";
+  const secs = Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000));
+  if (secs <= 0) return "EXPIRED";
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m}m ${s}s`;
+}
+
+export function QuantumEventCard() {
+  const [qe,         setQe]         = useState<QuantumEventConfig>(QE_DEFAULTS);
+  const [loaded,     setLoaded]      = useState(false);
+  const [multiplier, setMultiplier]  = useState(2);
+  const [duration,   setDuration]    = useState(60);
+  const [saving,     setSaving]      = useState(false);
+  const [msg,        setMsg]         = useState<string | null>(null);
+  const [remaining,  setRemaining]   = useState("--");
+
+  // Fetch current state
+  useEffect(() => {
+    fetch("/api/admin/config")
+      .then((r) => r.json())
+      .then((data) => {
+        const q: QuantumEventConfig = data.quantum_event ?? QE_DEFAULTS;
+        setQe(q);
+        setMultiplier(q.multiplier ?? 2);
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, []);
+
+  // Countdown ticker when active
+  useEffect(() => {
+    if (!qe.active || !qe.expires_at) { setRemaining("--"); return; }
+    setRemaining(fmtTimeRemaining(qe.expires_at));
+    const t = setInterval(() => setRemaining(fmtTimeRemaining(qe.expires_at)), 1000);
+    return () => clearInterval(t);
+  }, [qe.active, qe.expires_at]);
+
+  async function patch(value: QuantumEventConfig) {
+    setSaving(true);
+    setMsg(null);
+    try {
+      const res = await fetch("/api/admin/config", {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ key: "quantum_event", value }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Save failed");
+      setQe(value);
+      setMsg(value.active ? `ACTIVE — ${value.multiplier}x for ${duration} min` : "DEACTIVATED");
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function activate() {
+    const expires_at = new Date(Date.now() + duration * 60 * 1000).toISOString();
+    patch({ active: true, multiplier, expires_at });
+  }
+
+  function deactivate() {
+    patch({ active: false, multiplier: qe.multiplier, expires_at: null });
+  }
+
+  const isExpired = qe.active && qe.expires_at && new Date(qe.expires_at).getTime() < Date.now();
+  const effectivelyActive = qe.active && !isExpired;
+
+  return (
+    <div className="numina-card bracketed" style={{ padding: "24px", background: "#040404" }}>
+      <p className="pixel text-[7px] text-dim mb-5">// QUANTUM EVENT</p>
+
+      {/* Status badge */}
+      <div className="flex items-center gap-3 mb-5">
+        <span
+          className="pixel text-[8px]"
+          style={{ color: effectivelyActive ? "#FFFFFF" : "#444444" }}
+        >
+          {effectivelyActive ? "● ACTIVE" : "○ INACTIVE"}
+        </span>
+        {effectivelyActive && (
+          <>
+            <span className="mono text-xs" style={{ color: "#888888" }}>
+              {qe.multiplier}x fragments
+            </span>
+            <span className="mono text-xs" style={{ color: "#555555" }}>
+              {remaining} remaining
+            </span>
+          </>
+        )}
+        {isExpired && (
+          <span className="mono text-xs" style={{ color: "#FF4444" }}>EXPIRED</span>
+        )}
+      </div>
+
+      {loaded && (
+        <div className="flex flex-col gap-4">
+          {/* Multiplier */}
+          <Field label="Multiplier">
+            <select
+              value={multiplier}
+              onChange={(e) => setMultiplier(Number(e.target.value))}
+              style={{ ...INPUT, cursor: "pointer" }}
+            >
+              {[2, 3, 5].map((x) => (
+                <option key={x} value={x}>{x}x fragments</option>
+              ))}
+            </select>
+          </Field>
+
+          {/* Duration */}
+          <Field label="Duration">
+            <select
+              value={duration}
+              onChange={(e) => setDuration(Number(e.target.value))}
+              style={{ ...INPUT, cursor: "pointer" }}
+            >
+              {[30, 60, 120].map((m) => (
+                <option key={m} value={m}>{m} minutes</option>
+              ))}
+            </select>
+          </Field>
+
+          {/* Actions */}
+          <div className="flex gap-3 mt-2">
+            <button
+              onClick={activate}
+              disabled={saving}
+              className="btn-amber pixel text-[7px] flex-1"
+            >
+              {saving ? "SAVING..." : "ACTIVATE EVENT"}
+            </button>
+            <button
+              onClick={deactivate}
+              disabled={saving || !qe.active}
+              className="btn-outline pixel text-[7px] flex-1"
+            >
+              DEACTIVATE
+            </button>
+          </div>
+
+          {msg && (
+            <p className="mono text-xs" style={{ color: "#888888" }}>{msg}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

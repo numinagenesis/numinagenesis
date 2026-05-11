@@ -197,6 +197,11 @@ export default function ForgePage() {
   const [tasksToday,      setTasksToday]      = useState(0);
   const [lastFragsEarned, setLastFragsEarned] = useState<number | null>(null);
 
+  // quantum event
+  type QuantumState = { active: boolean; multiplier: number; time_remaining_seconds: number } | null;
+  const [quantumEvent,    setQuantumEvent]    = useState<QuantumState>(null);
+  const [qSecsLeft,       setQSecsLeft]       = useState(0);
+
   // mission state
   type MissionState = "idle" | "loading_mission" | "mission_ready" | "submitting" | "rate_limited";
   const [missionState,    setMissionState]    = useState<MissionState>("idle");
@@ -223,18 +228,40 @@ export default function ForgePage() {
   // ── Session check + initial load ──────────────────────────────────────────
   const fetchStatus = useCallback(async () => {
     try {
-      const res = await fetch("/api/forge/status");
-      if (res.ok) {
-        const data = await res.json();
+      const [statusRes, quantumRes] = await Promise.all([
+        fetch("/api/forge/status"),
+        fetch("/api/forge/quantum"),
+      ]);
+      if (statusRes.ok) {
+        const data = await statusRes.json();
         setAgent(data.agent ?? null);
         setFragments(data.fragments ?? 0);
         setTasksToday(data.tasks_today ?? 0);
         setBurnCooldownNext(data.next_burn_at ?? null);
       }
+      if (quantumRes.ok) {
+        const q = await quantumRes.json();
+        if (q.active) {
+          setQuantumEvent({ active: true, multiplier: q.multiplier, time_remaining_seconds: q.time_remaining_seconds });
+          setQSecsLeft(q.time_remaining_seconds);
+        }
+      }
     } finally {
       setLoadState("ready");
     }
   }, []);
+
+  // Countdown for quantum event banner
+  useEffect(() => {
+    if (!quantumEvent?.active) return;
+    const t = setInterval(() => {
+      setQSecsLeft((prev) => {
+        if (prev <= 1) { clearInterval(t); setQuantumEvent(null); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(t);
+  }, [quantumEvent?.active]);
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -487,6 +514,28 @@ export default function ForgePage() {
 
         {/* ── Right: meter + tabs ───────────────────────────────────────── */}
         <div className="fade-up flex flex-col gap-5">
+
+          {/* Quantum event banner */}
+          {quantumEvent?.active && (
+            <div
+              style={{
+                background: "#0A0A00",
+                border:     "1px solid #555500",
+                padding:    "10px 14px",
+                display:    "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 8,
+              }}
+            >
+              <span className="pixel text-[8px]" style={{ color: "#FFFF44" }}>
+                ⚡ QUANTUM SURGE ACTIVE — {quantumEvent.multiplier}x FRAGMENTS
+              </span>
+              <span className="mono text-[10px]" style={{ color: "#888800" }}>
+                {Math.floor(qSecsLeft / 60)}m {qSecsLeft % 60}s
+              </span>
+            </div>
+          )}
 
           {/* Fragment meter - always visible */}
           <div className="numina-card bracketed p-5 flex flex-col gap-4">
