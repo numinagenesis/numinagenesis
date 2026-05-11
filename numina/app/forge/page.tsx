@@ -11,7 +11,7 @@ import { WL_THRESHOLD, type PreMintAgent } from "@/lib/supabase-forge";
 
 const DAILY_LIMIT = 10;
 
-// ÔöÇÔöÇ Helpers ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function tierToRarity(tier: string): "legendary" | "rare" | "uncommon" | "classified" {
   if (tier === "prime")    return "legendary";
@@ -20,13 +20,13 @@ function tierToRarity(tier: string): "legendary" | "rare" | "uncommon" | "classi
   return "classified";
 }
 
-// ÔöÇÔöÇ Helpers ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function hoursUntil(iso: string): number {
   return Math.ceil((new Date(iso).getTime() - Date.now()) / 3_600_000);
 }
 
-// ÔöÇÔöÇ Burn Modal ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── Burn Modal ────────────────────────────────────────────────────────────────
 
 function BurnModal({
   agent,
@@ -132,7 +132,7 @@ function BurnModal({
                 opacity:     burning ? 0.6 : 1,
               }}
             >
-              {burning ? <span>BURNING<span className="blink">...</span></span> : "&gt; CONFIRM BURN"}
+              {burning ? <span>BURNING<span className="blink">...</span></span> : "> CONFIRM BURN"}
             </button>
           </div>
         </div>
@@ -141,7 +141,7 @@ function BurnModal({
   );
 }
 
-// ÔöÇÔöÇ Fragment Meter ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── Fragment Meter ────────────────────────────────────────────────────────────
 
 function FragmentMeter({ balance }: { balance: number }) {
   const pct  = Math.min((balance / WL_THRESHOLD) * 100, 100);
@@ -175,7 +175,7 @@ function FragmentMeter({ balance }: { balance: number }) {
   );
 }
 
-// ÔöÇÔöÇ Page ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── Page ─────────────────────────────────────────────────────────────────────
 
 type LoadState = "checking" | "ready";
 
@@ -214,7 +214,7 @@ export default function ForgePage() {
   const [burnError,       setBurnError]       = useState("");
   const [burnCooldownNext, setBurnCooldownNext] = useState<string | null>(null);
 
-  // ÔöÇÔöÇ Session check + initial load ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+  // ── Session check + initial load ──────────────────────────────────────────
   const fetchStatus = useCallback(async () => {
     try {
       const res = await fetch("/api/forge/status");
@@ -245,7 +245,7 @@ export default function ForgePage() {
       .catch(() => router.push("/"));
   }, []);
 
-  // ÔöÇÔöÇ Summon ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+  // ── Summon ────────────────────────────────────────────────────────────────
   async function summonAgent() {
     setSummoning(true);
     setSummonError("");
@@ -262,7 +262,7 @@ export default function ForgePage() {
     }
   }
 
-  // ÔöÇÔöÇ Run task ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+  // ── Run task ──────────────────────────────────────────────────────────────
   // ── Get mission ───────────────────────────────────────────────────────────────
   async function getMission() {
     setMissionState("loading_mission");
@@ -320,7 +320,7 @@ export default function ForgePage() {
     }
   }
 
-  // ÔöÇÔöÇ Burn agent ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+  // ── Burn agent ────────────────────────────────────────────────────────────
   async function burnAgent() {
     setBurning(true);
     setBurnError("");
@@ -349,7 +349,7 @@ export default function ForgePage() {
     }
   }
 
-  // ÔöÇÔöÇ Loading ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+  // ── Loading ───────────────────────────────────────────────────────────────
   if (loadState === "checking") {
     return (
       <main className="min-h-screen flex items-center justify-center">
@@ -376,7 +376,7 @@ export default function ForgePage() {
   const div  = agent ? DIVISIONS[agent.division as DivisionKey] : null;
   const tier = agent ? TIERS[agent.tier as TierKey]             : null;
 
-  // ÔöÇÔöÇ No agent yet ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+  // ── No agent yet ──────────────────────────────────────────────────────────
   if (!agent) {
     return (
       <main className="min-h-screen flex flex-col items-center justify-center px-6 py-20 text-center">
@@ -399,7 +399,7 @@ export default function ForgePage() {
             className="btn-amber pulse-amber w-full"
             style={{ fontSize: 11, padding: "16px 32px" }}
           >
-            {summoning ? "COLLAPSING..." : "&gt; SUMMON AGENT"}
+            {summoning ? "COLLAPSING..." : "> SUMMON AGENT"}
           </button>
           {summonError && (
             <p className="mono text-xs" style={{ color: "#FFFFFF" }}>x {summonError}</p>
@@ -412,7 +412,7 @@ export default function ForgePage() {
     );
   }
 
-  // ÔöÇÔöÇ Has agent ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+  // ── Has agent ─────────────────────────────────────────────────────────────
   const atLimit = tasksToday >= DAILY_LIMIT;
 
   return (
@@ -450,7 +450,7 @@ export default function ForgePage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
 
-        {/* ÔöÇÔöÇ Left: Agent card ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ */}
+        {/* ── Left: Agent card ─────────────────────────────────────────── */}
         <div className="fade-up">
           <AgentCard
             division={agent.division as DivisionKey}
@@ -464,7 +464,7 @@ export default function ForgePage() {
           />
         </div>
 
-        {/* ÔöÇÔöÇ Right: meter + tabs ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ */}
+        {/* ── Right: meter + tabs ───────────────────────────────────────── */}
         <div className="fade-up flex flex-col gap-5">
 
           {/* Fragment meter - always visible */}
@@ -513,7 +513,7 @@ export default function ForgePage() {
               className="mono text-[9px]"
               style={{ color: "#555555", textDecoration: "none" }}
             >
-              &#8644; SWAP
+              ⇄ SWAP
             </a>
             {burnCooldownNext && new Date(burnCooldownNext).getTime() > Date.now() && (
               <span className="mono text-[9px]" style={{ color: "#664444" }}>
@@ -543,7 +543,7 @@ export default function ForgePage() {
             ))}
           </div>
 
-          {/* ÔöÇÔöÇ DEPLOY tab ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ */}
+          {/* ── DEPLOY tab ──────────────────────────────────────────────── */}
           {activeTab === "deploy" && (
             <>
               {/* Mission system */}
@@ -573,7 +573,7 @@ export default function ForgePage() {
                       className={atLimit ? "btn-outline w-full" : "btn-amber w-full"}
                       style={{ opacity: atLimit ? 0.4 : 1, fontSize: 11, padding: "16px 32px" }}
                     >
-                      {atLimit ? "DAILY LIMIT REACHED" : "&gt; GET MISSION"}
+                      {atLimit ? "DAILY LIMIT REACHED" : "> GET MISSION"}
                     </button>
                     {missionError && (
                       <span className="mono text-[10px]" style={{ color: "#FFFFFF" }}>x {missionError}</span>
@@ -650,7 +650,7 @@ export default function ForgePage() {
                       {missionState === "submitting" ? (
                         <span>AGENT WORKING<span className="blink">...</span></span>
                       ) : (
-                        "&gt; DEPLOY MISSION"
+                        "> DEPLOY MISSION"
                       )}
                     </button>
                   </>
@@ -707,7 +707,7 @@ export default function ForgePage() {
             </>
           )}
 
-          {/* ÔöÇÔöÇ HISTORY tab ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ */}
+          {/* ── HISTORY tab ─────────────────────────────────────────────── */}
           {activeTab === "history" && (
             <TaskHistory
               division={agent.division as DivisionKey}
