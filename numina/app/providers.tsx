@@ -2,17 +2,24 @@
 
 import { getDefaultConfig, RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
 import "@rainbow-me/rainbowkit/styles.css";
-import { WagmiProvider } from "wagmi";
+import { WagmiProvider, http } from "wagmi";
 import { mainnet, sepolia } from "wagmi/chains";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 
 // NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID must be set for WalletConnect to work.
 // Get a free project ID from https://cloud.walletconnect.com
+const mainnetTransport = http(
+  process.env.NEXT_PUBLIC_ALCHEMY_RPC_URL || "https://cloudflare-eth.com"
+);
+
 const config = getDefaultConfig({
   appName: "NUMINA",
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "NUMINA_SET_WALLETCONNECT_PROJECT_ID",
   chains: [mainnet, sepolia],
+  transports: {
+    [mainnet.id]: mainnetTransport,
+  },
   ssr: true,
 });
 

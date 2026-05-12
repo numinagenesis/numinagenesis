@@ -1,4 +1,6 @@
-﻿import Link from "next/link";
+﻿"use client";
+
+import Link from "next/link";
 import Ticker from "@/components/Ticker";
 import AgentCard from "@/components/AgentCard";
 
