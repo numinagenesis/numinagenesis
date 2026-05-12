@@ -1,6 +1,7 @@
 import PixelAvatar from "./PixelAvatar";
 import type { DivisionKey, TierKey } from "@/lib/divisions";
 import { DIVISIONS, TIERS } from "@/lib/divisions";
+import type { GeneratedToken } from "@/lib/generateToken";
 
 type Rarity = "legendary" | "epic" | "rare" | "uncommon" | "classified";
 
@@ -13,6 +14,7 @@ interface AgentCardProps {
   revealed?: boolean;
   fragmentId?: string;
   soulHash?: string;
+  token?: GeneratedToken;      // pixel art token — if provided + revealed, renders canvas avatar
 }
 
 const RARITY_LABEL: Record<Rarity, string> = {
@@ -26,7 +28,7 @@ const RARITY_LABEL: Record<Rarity, string> = {
 export default function AgentCard({
   division, tier = "operator", tokenId = "???",
   flavorText = "MINT TO REVEAL", rarity = "classified", revealed = false,
-  fragmentId, soulHash,
+  fragmentId, soulHash, token,
 }: AgentCardProps) {
   const div = division !== "classified" ? DIVISIONS[division] : null;
   const tierInfo = tier !== "classified" ? TIERS[tier as TierKey] : null;
@@ -41,10 +43,11 @@ export default function AgentCard({
       </div>
 
       {/* Avatar */}
-      <div className="flex items-center justify-center py-6"
-           style={{ background: "#0A0A0A", borderBottom: "1px solid #222222", position: "relative" }}>
-        {revealed && div ? (
-          <PixelAvatar division={division} size={80} />
+      <div className="flex items-center justify-center"
+           style={{ background: "#0A0A0A", borderBottom: "1px solid #222222", position: "relative",
+                    minHeight: 160 }}>
+        {revealed && token ? (
+          <PixelAvatar token={token} size={160} animated={false} />
         ) : (
           <div style={{ width: 80, height: 80, background: "#111111", border: "1px solid #222222",
                         display: "flex", alignItems: "center", justifyContent: "center" }}>

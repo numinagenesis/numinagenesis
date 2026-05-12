@@ -8,6 +8,9 @@ import TaskHistory from "@/components/TaskHistory";
 import { ConnectAndSignIn } from "@/components/ConnectAndSignIn";
 import { DIVISIONS, TIERS, type DivisionKey, type TierKey } from "@/lib/divisions";
 import { WL_THRESHOLD, type PreMintAgent } from "@/lib/supabase-forge";
+import { generateToken, soulHashToSeed, type GeneratedToken } from "@/lib/generateToken";
+import { APP_DIVISION_TO_PIXEL, APP_TIER_TO_PIXEL } from "@/lib/divisionData";
+import PixelAvatar from "@/components/PixelAvatar";
 
 const DAILY_LIMIT = 10;
 
@@ -219,11 +222,22 @@ export default function ForgePage() {
   const [activeTab,   setActiveTab]   = useState<"deploy" | "history">("deploy");
   const [historyKey,  setHistoryKey]  = useState(0);
 
+  // pixel art token
+  const [agentToken, setAgentToken] = useState<GeneratedToken | null>(null);
+
   // burn state
   const [burnModal,       setBurnModal]       = useState(false);
   const [burning,         setBurning]         = useState(false);
   const [burnError,       setBurnError]       = useState("");
   const [burnCooldownNext, setBurnCooldownNext] = useState<string | null>(null);
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function tokenFromAgent(a: PreMintAgent): GeneratedToken {
+    const seed     = soulHashToSeed(a.soul_hash);
+    const pixelDiv = APP_DIVISION_TO_PIXEL[a.division] ?? 'strategist';
+    const pixelTier = APP_TIER_TO_PIXEL[a.tier] ?? 'recruit';
+    return generateToken(seed, pixelDiv, pixelTier);
+  }
 
   // ── Session check + initial load ──────────────────────────────────────────
   const fetchStatus = useCallback(async () => {
@@ -234,10 +248,12 @@ export default function ForgePage() {
       ]);
       if (statusRes.ok) {
         const data = await statusRes.json();
-        setAgent(data.agent ?? null);
+        const loadedAgent: PreMintAgent | null = data.agent ?? null;
+        setAgent(loadedAgent);
         setFragments(data.fragments ?? 0);
         setTasksToday(data.tasks_today ?? 0);
         setBurnCooldownNext(data.next_burn_at ?? null);
+        if (loadedAgent) setAgentToken(tokenFromAgent(loadedAgent));
       }
       if (quantumRes.ok) {
         const q = await quantumRes.json();
@@ -303,8 +319,10 @@ export default function ForgePage() {
       const res  = await fetch("/api/forge/summon", { method: "POST" });
       const data = await res.json();
       if (!res.ok) { setSummonError(data.error ?? "Summon failed"); return; }
-      setAgent(data.agent);
+      const newAgent: PreMintAgent = data.agent;
+      setAgent(newAgent);
       setFragments(data.fragments ?? 0);
+      setAgentToken(tokenFromAgent(newAgent));
     } catch {
       setSummonError("Network error - try again");
     } finally {
@@ -516,7 +534,7 @@ export default function ForgePage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
 
         {/* ── Left: Agent card ─────────────────────────────────────────── */}
-        <div className="fade-up">
+        <div className="fade-up flex flex-col gap-4">
           <AgentCard
             division={agent.division as DivisionKey}
             tier={agent.tier as TierKey}
@@ -526,7 +544,28 @@ export default function ForgePage() {
             revealed={true}
             fragmentId={agent.fragment_id}
             soulHash={agent.soul_hash}
+            token={agentToken ?? undefined}
           />
+
+          {/* Trait pills */}
+          {agentToken && (
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(agentToken.traits).map(([k, v]) => (
+                <div
+                  key={k}
+                  className="mono text-[9px]"
+                  style={{
+                    background: "#0A0A0A",
+                    border:     "1px solid #1E1E1E",
+                    padding:    "2px 8px",
+                  }}
+                >
+                  <span style={{ color: "#444444" }}>{k.toUpperCase()}: </span>
+                  <span style={{ color: "#888888" }}>{v.toUpperCase()}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* ── Right: meter + tabs ───────────────────────────────────────── */}

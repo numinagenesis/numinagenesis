@@ -1,7 +1,14 @@
 ﻿"use client";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import PixelAvatar from "@/components/PixelAvatar";
 import { DIVISIONS, TIERS, BUILDER_DIVISIONS, COMMUNITY_DIVISIONS, SKILLS, type DivisionKey, type TierKey } from "@/lib/divisions";
+import { generateToken } from "@/lib/generateToken";
+import { APP_DIVISION_TO_PIXEL } from "@/lib/divisionData";
+
+// Stable numeric seed from a division key string
+function divisionSeed(key: string): number {
+  return key.split("").reduce((acc, c, i) => acc + c.charCodeAt(0) * (i + 1), 0);
+}
 
 function DivisionCard({ divKey, selected, onClick }: { divKey: DivisionKey; selected: boolean; onClick: () => void }) {
   const div = DIVISIONS[divKey];
@@ -30,13 +37,19 @@ function DivisionCard({ divKey, selected, onClick }: { divKey: DivisionKey; sele
 function DivisionPanel({ divKey }: { divKey: DivisionKey }) {
   const div = DIVISIONS[divKey];
   const skills = SKILLS[divKey];
+  const panelToken = useMemo(() => {
+    const pixelDiv = APP_DIVISION_TO_PIXEL[divKey] ?? 'strategist';
+    return generateToken(divisionSeed(divKey), pixelDiv, 'operator');
+  }, [divKey]);
 
   return (
     <div className="fade-up numina-card bracketed p-0 md:col-span-2">
       {/* Header */}
       <div className="flex items-center gap-4 px-6 py-4"
            style={{ borderBottom: "1px solid #222222", background: "#080808" }}>
-        <PixelAvatar division={divKey} size={48} />
+        <div style={{ width: 48, height: 48, flexShrink: 0 }}>
+          <PixelAvatar token={panelToken} size={48} animated={false} />
+        </div>
         <div>
           <p className="pixel text-[11px] mb-1" style={{ color: div.color }}>{div.name.toUpperCase()}</p>
           <p className="mono text-xs text-muted">{div.track.toUpperCase()} TRACK · {div.rarity}% rarity</p>
