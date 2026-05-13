@@ -1,0 +1,21 @@
+{
+  "name": "numina-soul-pipeline",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fetch, customize, and permanently upload NUMINA soul files to Arweave.",
+  "scripts": {
+    "dry-run": "tsx dry-run.ts",
+    "upload":  "tsx upload.ts"
+  },
+  "dependencies": {
+    "@irys/sdk":   "^0.2.0",
+    "dotenv":      "^16.4.0",
+    "node-fetch":  "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/node":       "^20.0.0",
+    "@types/node-fetch": "^2.6.0",
+    "tsx":               "^4.7.0",
+    "typescript":        "^5.4.0"
+  }
+}

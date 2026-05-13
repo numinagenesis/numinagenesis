@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Ticker from "@/components/Ticker";
 import AgentCard from "@/components/AgentCard";
+import { generateToken } from "@/lib/generateToken";
 
 const STATS = [
   { value: "12", label: "DIVS"  },
@@ -79,9 +80,10 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            {PREVIEW_CARDS.map((card, i) => (
-              <AgentCard key={i} {...card} revealed={card.rarity !== "classified"} />
-            ))}
+            <AgentCard {...PREVIEW_CARDS[0]} revealed token={generateToken(1)} />
+            <AgentCard {...PREVIEW_CARDS[1]} revealed token={generateToken(2)} />
+            <AgentCard {...PREVIEW_CARDS[2]} revealed token={generateToken(3)} />
+            <AgentCard {...PREVIEW_CARDS[3]} revealed={false} token={generateToken(4)} />
           </div>
         </section>
 
